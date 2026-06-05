@@ -1,0 +1,151 @@
+/* index.css — design system do sistema de fechamento de caixa.
+   Tema claro consistente (ferramenta de PDV usada o dia todo). Tokens de cor,
+   espaçamento, raios e sombras reutilizados por todas as telas. */
+
+:root {
+  /* Marca — Alface Melancia & Cia. (cores da logo: casca verde, polpa vermelha,
+     "&" verde-limão, estrelas douradas) */
+  --verde: #43a83a;          /* verde melancia/casca */
+  --verde-escuro: #2f7d32;
+  --verde-bg: #eaf6e7;
+  --lima: #9fc23a;           /* verde-limão do "&" */
+  --vermelho-marca: #d8362b; /* vermelho da polpa */
+  --ouro: #c9a227;           /* estrelas */
+
+  /* Estado */
+  --vermelho: #d8362b;
+  --vermelho-bg: #fdecea;
+  --ambar: #b7791f;
+  --ambar-bg: #fdf6e3;
+  --azul-bg: #eaf2fd;
+  --azul-borda: #cfe1fb;
+
+  /* Neutros */
+  --texto: #1f2733;
+  --texto-suave: #5b6672;
+  --texto-fraco: #8a929c;
+  --borda: #e4e8ed;
+  --borda-forte: #d4dae1;
+  --bg: #f3f5f8;
+  --superficie: #ffffff;
+  --superficie-2: #f8fafc;
+
+  /* Forma */
+  --raio: 10px;
+  --raio-sm: 7px;
+  --raio-lg: 14px;
+  --sombra-sm: 0 1px 2px rgba(16, 24, 40, 0.06);
+  --sombra: 0 2px 8px rgba(16, 24, 40, 0.08);
+  --sombra-lg: 0 12px 32px rgba(16, 24, 40, 0.16);
+
+  --sans: 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif;
+  --mono: 'Cascadia Code', Consolas, ui-monospace, monospace;
+
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--texto);
+  color-scheme: light;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--texto);
+}
+
+#root {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+h1 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--texto);
+  margin: 0 0 1rem;
+}
+
+h2 {
+  font-size: 1.05rem;
+  font-weight: 650;
+  color: var(--texto);
+  margin: 0 0 0.75rem;
+}
+
+h3 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--texto-suave);
+  margin: 0 0 0.5rem;
+}
+
+p {
+  margin: 0;
+}
+
+/* Controles base */
+input,
+textarea,
+button,
+select {
+  font-family: inherit;
+  font-size: 1rem;
+  color: var(--texto);
+}
+
+button {
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease,
+    transform 0.05s ease;
+}
+
+button:active {
+  transform: translateY(1px);
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 3px solid rgba(47, 158, 84, 0.25);
+  outline-offset: 0;
+  border-color: var(--verde) !important;
+}
+
+button:focus-visible {
+  outline: 3px solid rgba(47, 158, 84, 0.35);
+  outline-offset: 2px;
+}
+
+/* Inputs padrão (texto, número, date, password) */
+input[type='text'],
+input[type='number'],
+input[type='password'],
+input[type='date'],
+textarea {
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--borda-forte);
+  border-radius: var(--raio-sm);
+  background: var(--superficie);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--texto-fraco);
+}

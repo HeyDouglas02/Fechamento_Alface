@@ -1,0 +1,125 @@
+.app {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Barra do topo */
+.topo {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0 1.5rem;
+  height: 64px;
+  background: var(--superficie);
+  border-bottom: 3px solid transparent;
+  /* Faixa inferior com o gradiente do anel da logo (vermelho -> verde) */
+  border-image: linear-gradient(90deg, var(--vermelho-marca), var(--ouro) 45%, var(--verde)) 1;
+  box-shadow: var(--sombra-sm);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.topo__marca {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 700;
+  color: var(--texto);
+  white-space: nowrap;
+}
+
+.topo__logo-img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: var(--sombra-sm);
+}
+
+.topo__nome {
+  font-size: 1.02rem;
+}
+
+.topo__abas {
+  display: flex;
+  gap: 0.25rem;
+  height: 100%;
+}
+
+.topo__abas button {
+  height: 100%;
+  padding: 0 1rem;
+  border: none;
+  background: transparent;
+  border-bottom: 3px solid transparent;
+  color: var(--texto-suave);
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.topo__abas button:hover {
+  color: var(--texto);
+  background: var(--superficie-2);
+}
+
+.topo__abas button.ativo {
+  color: var(--verde-escuro);
+  border-bottom-color: var(--verde);
+  font-weight: 650;
+}
+
+.topo__usuario {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.topo__avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--verde);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.topo__usuario-nome {
+  font-size: 0.9rem;
+  color: var(--texto-suave);
+  font-weight: 500;
+}
+
+.topo__sair {
+  padding: 0.35rem 0.8rem;
+  border: 1px solid var(--borda-forte);
+  border-radius: var(--raio-sm);
+  background: var(--superficie);
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+}
+
+.topo__sair:hover {
+  background: var(--vermelho-bg);
+  border-color: var(--vermelho);
+  color: var(--vermelho);
+}
+
+.conteudo {
+  flex: 1;
+}
+
+@media (max-width: 640px) {
+  .topo {
+    gap: 0.75rem;
+    padding: 0 0.75rem;
+  }
+  .topo__nome { display: none; }
+  .topo__usuario-nome { display: none; }
+  .topo__abas button { padding: 0 0.6rem; font-size: 0.88rem; }
+}

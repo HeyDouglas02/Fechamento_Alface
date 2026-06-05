@@ -1,0 +1,87 @@
+.relatorio-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 2rem 1rem;
+  overflow: auto;
+  z-index: 100;
+}
+
+.relatorio-modal {
+  background: var(--superficie);
+  border-radius: var(--raio-lg);
+  padding: 1.1rem;
+  max-width: 380px;
+  width: 100%;
+  box-shadow: var(--sombra-lg);
+}
+
+.relatorio-acoes {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  margin-bottom: 0.75rem;
+}
+
+.relatorio-acoes button {
+  padding: 0.5rem 1.1rem;
+  border: 1px solid var(--borda-forte);
+  background: var(--superficie);
+  border-radius: var(--raio-sm);
+  font-weight: 600;
+  color: var(--texto);
+}
+
+.relatorio-acoes button:hover {
+  background: var(--superficie-2);
+}
+
+.relatorio-acoes button.primario {
+  background: var(--verde);
+  border-color: var(--verde);
+  color: #fff;
+}
+
+.relatorio-acoes button.primario:hover {
+  background: var(--verde-escuro);
+}
+
+/* Pré-visualização: monoespaçado, largura de bobina 58mm. */
+.relatorio-print {
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.35;
+  white-space: pre;
+  margin: 0;
+  padding: 0.75rem;
+  border: 1px dashed #ccc;
+  background: #fafafa;
+  overflow-x: auto;
+}
+
+/* Na impressão, esconde tudo menos o relatório. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .relatorio-print,
+  .relatorio-print * {
+    visibility: visible;
+  }
+  .relatorio-print {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 58mm;
+    border: none;
+    background: #fff;
+    padding: 0;
+    font-size: 11px;
+  }
+  .no-print {
+    display: none !important;
+  }
+}

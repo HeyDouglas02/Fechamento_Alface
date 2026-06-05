@@ -1,0 +1,25 @@
+{
+  "name": "fechamento-alface",
+  "version": "1.0.0",
+  "description": "Sistema de fechamento de caixa — Alface & Melancia",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "server": "node server/index.js",
+    "start": "node server/index.js",
+    "iniciar": "npm run build && node server/index.js",
+    "test": "node src/utils/calculos.test.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "sql.js": "^1.14.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.5.2",
+    "vite": "^7.3.3"
+  }
+}
