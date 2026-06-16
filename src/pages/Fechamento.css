@@ -247,6 +247,62 @@
   color: var(--texto);
 }
 
+/* Dinheiro — blocos por caixa */
+.caixa-bloco {
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-sm);
+  padding: 0.8rem 0.9rem;
+  background: var(--superficie-2);
+}
+
+.caixa-bloco h3 {
+  margin: 0 0 0.7rem;
+  font-size: 0.9rem;
+  color: var(--texto);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.caixa-bloco .campo-valor:last-child { margin-bottom: 0; }
+
+.sangria-titulo {
+  margin: 1.1rem 0 0.5rem;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--texto-fraco);
+}
+
+.sangria-form {
+  display: grid;
+  grid-template-columns: auto 2fr 1fr auto;
+  gap: 0.5rem;
+}
+
+.sangria-form select {
+  padding: 0.45rem 0.5rem;
+  border: 1px solid var(--borda-forte);
+  border-radius: var(--raio-sm);
+  background: var(--superficie);
+  font-size: 0.9rem;
+}
+
+.sangria-form button {
+  padding: 0 0.9rem;
+  border: 1px solid var(--verde);
+  background: var(--verde);
+  color: #fff;
+  border-radius: var(--raio-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sangria-form button:hover { background: var(--verde-escuro); }
+
+@media (max-width: 640px) {
+  .sangria-form { grid-template-columns: 1fr 1fr; }
+}
+
 /* Pendências */
 .pendencia-form {
   display: grid;

@@ -13,10 +13,11 @@ const LINHAS_DETALHE = [
   ['Real maquininhas', 'totalRealMaquininhas'],
   ['Diferença cartão/pix', 'diferencaCartaoPix'],
   ['Dinheiro esperado', 'dinheiroEsperado'],
-  ['Dinheiro real', 'dinheiroReal'],
   ['Diferença dinheiro', 'diferencaDinheiro'],
   ['Sangria caixa 1', 'sangriaCaixa1'],
   ['Sangria caixa 2', 'sangriaCaixa2'],
+  ['Retirar caixa 1', 'retirarCaixa1'],
+  ['Retirar caixa 2', 'retirarCaixa2'],
 ];
 
 export default function Historico({ onAbrir }) {

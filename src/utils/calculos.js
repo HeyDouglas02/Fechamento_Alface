@@ -58,38 +58,63 @@ function totalMaquininhas(d = {}) {
 // ---------------------------------------------------------------------------
 // Conferência do DINHEIRO
 // ---------------------------------------------------------------------------
-// esperado = (fundo fixo caixa 1 + fundo fixo caixa 2) + dinheiro Microvix
-// contado  = cédulas caixa 1 + cédulas caixa 2   (moeda não entra no dia a dia)
-// diferenca = contado − esperado   (− faltou, + sobrou)
-// sangria caixa N = cédulas caixa N − fundo fixo caixa N
-// provavelMoeda = |diferenca| abaixo do limite configurável
+// Fluxo por caixa (1 e 2) — sem "fundo fixo":
+//   abertura     = quanto o caixa tinha ao abrir o dia
+//   suprimento   = dinheiro acrescentado ao caixa durante o dia
+//   sangria      = soma das retiradas do caixa no dia (pagamentos)
+//   fechamento   = total contado no caixa no fim do dia (só cédulas)
+//   desejado     = quanto se quer DEIXAR no caixa para o próximo dia
+//
+// A conferência é COMBINADA (Microvix dá o dinheiro num total só):
+//   esperado  = Σ(abertura + suprimento − sangria) + dinheiro Microvix
+//   contado   = Σ fechamento
+//   diferenca = contado − esperado     (− faltou, + sobrou)
+// Diferença pequena (abaixo do limite) = provável troco em moeda.
+//
+// Além disso, por caixa, quanto retirar no fim para sobrar o desejado:
+//   retirar = fechamento − desejado    (+ retira o excedente / − precisa repor)
 function conferenciaDinheiro(d = {}) {
-  const fundoFixoCaixa1 = n(d.fundoFixoCaixa1);
-  const fundoFixoCaixa2 = n(d.fundoFixoCaixa2);
-  const fundoFixoTotal = fundoFixoCaixa1 + fundoFixoCaixa2;
+  const abertura1 = n(d.aberturaCaixa1);
+  const abertura2 = n(d.aberturaCaixa2);
+  const suprimento1 = n(d.suprimentoCaixa1);
+  const suprimento2 = n(d.suprimentoCaixa2);
+  const sangria1 = n(d.sangriaCaixa1);
+  const sangria2 = n(d.sangriaCaixa2);
+  const fechamento1 = n(d.fechamentoCaixa1);
+  const fechamento2 = n(d.fechamentoCaixa2);
+  const desejado1 = n(d.desejadoCaixa1);
+  const desejado2 = n(d.desejadoCaixa2);
 
-  const dinheiroEsperado = arredondar(fundoFixoTotal + n(d.microvixDinheiro));
-  const dinheiroContado = arredondar(n(d.cedulasCaixa1) + n(d.cedulasCaixa2));
-  const dinheiroReal = arredondar(dinheiroContado - fundoFixoTotal);
+  const dinheiroContado = arredondar(fechamento1 + fechamento2);
+  const totalAbertura = arredondar(abertura1 + abertura2);
+  const totalSuprimento = arredondar(suprimento1 + suprimento2);
+  const totalSangria = arredondar(sangria1 + sangria2);
 
+  const dinheiroEsperado = arredondar(
+    totalAbertura + totalSuprimento - totalSangria + n(d.microvixDinheiro)
+  );
   const diferencaDinheiro = arredondar(dinheiroContado - dinheiroEsperado);
 
-  const sangriaCaixa1 = arredondar(n(d.cedulasCaixa1) - fundoFixoCaixa1);
-  const sangriaCaixa2 = arredondar(n(d.cedulasCaixa2) - fundoFixoCaixa2);
-  const totalSangria = arredondar(sangriaCaixa1 + sangriaCaixa2);
+  // Quanto retirar de cada caixa para sobrar o desejado no próximo dia.
+  const retirarCaixa1 = arredondar(fechamento1 - desejado1);
+  const retirarCaixa2 = arredondar(fechamento2 - desejado2);
+  const totalRetirar = arredondar(retirarCaixa1 + retirarCaixa2);
 
   const limite = n(d.limiteDiferencaMoeda);
   const provavelMoeda = diferencaDinheiro !== 0 && Math.abs(diferencaDinheiro) < limite;
 
   return {
-    fundoFixoTotal: arredondar(fundoFixoTotal),
+    totalAbertura,
+    totalSuprimento,
+    sangriaCaixa1: arredondar(sangria1),
+    sangriaCaixa2: arredondar(sangria2),
+    totalSangria,
     dinheiroEsperado,
     dinheiroContado,
-    dinheiroReal,
     diferencaDinheiro,
-    sangriaCaixa1,
-    sangriaCaixa2,
-    totalSangria,
+    retirarCaixa1,
+    retirarCaixa2,
+    totalRetirar,
     provavelMoeda,
   };
 }
@@ -99,8 +124,16 @@ function conferenciaDinheiro(d = {}) {
 // ---------------------------------------------------------------------------
 // total Microvix = crédito + débito + voucher + pix (do Microvix)
 // total real     = soma (cartão + pix) das 4 máquinas + pix chave direta
-// ambas as pendências (abertas e recebidas no dia) SUBTRAEM do real:
-//   real_ajustado = total real − pendencias_abertas − pendencias_recebidas
+//
+// As pendências entram com sinais OPOSTOS (cada uma explica um lado da diferença):
+//   - ABERTA (cliente comprou e ainda NÃO passou o cartão): a venda está no
+//     Microvix mas não na maquininha -> a máquina ficou a MENOS. Para explicar,
+//     SOMA-se de volta no real. (+)
+//   - RECEBIDA (cliente pagou hoje uma compra de outro dia): entrou na maquininha
+//     mas não no Microvix de hoje -> a máquina ficou a MAIS. SUBTRAI-se do real. (−)
+// Há ainda os AJUSTES de cartão/pix (lista com sinal): eventos de uma vez só que
+// somam ou subtraem (ex.: convênio pagou fiado via cartão -> subtrai).
+//   real_ajustado = total real + abertas − recebidas + ajustes(com sinal)
 //   diferenca     = real_ajustado − total Microvix   (− faltou, + sobrou)
 // (a prazo e iFood NÃO entram aqui — são só registro)
 function conferenciaCartaoPix(d = {}) {
@@ -112,11 +145,15 @@ function conferenciaCartaoPix(d = {}) {
   const pendenciasAbertas = n(d.pendenciasAbertas);
   const pendenciasRecebidas = n(d.pendenciasRecebidas);
   const totalPendencias = arredondar(pendenciasAbertas + pendenciasRecebidas);
+  const ajustesCartao = arredondar(n(d.ajustesCartao)); // soma (+) ou subtrai (−)
 
-  // Diferença bruta antes das pendências (real − Microvix), só informativa.
+  // Diferença bruta antes dos ajustes (real − Microvix), só informativa.
   const diferencaBruta = arredondar(totalRealMaquininhas - totalMicrovixCartaoPix);
 
-  const realAjustado = arredondar(totalRealMaquininhas - totalPendencias);
+  // Abertas SOMAM (explicam a falta na máquina); recebidas SUBTRAEM (sobra na máquina).
+  const realAjustado = arredondar(
+    totalRealMaquininhas + pendenciasAbertas - pendenciasRecebidas + ajustesCartao
+  );
   const diferencaCartaoPix = arredondar(realAjustado - totalMicrovixCartaoPix);
 
   return {
@@ -125,6 +162,7 @@ function conferenciaCartaoPix(d = {}) {
     pendenciasAbertas: arredondar(pendenciasAbertas),
     pendenciasRecebidas: arredondar(pendenciasRecebidas),
     totalPendencias,
+    ajustesCartao,
     diferencaBruta,
     realAjustado,
     diferencaCartaoPix,

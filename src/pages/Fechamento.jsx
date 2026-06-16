@@ -35,6 +35,12 @@ function semanaDe(dataISO) {
 // Formulário em branco para abrir uma nova pendência.
 const PENDENCIA_VAZIA = { descricao: '', valor: 0, formaPagamento: '', previsaoPagamento: '' };
 
+// Lançamento de sangria em branco (retirada de dinheiro do caixa para pagamento).
+const SANGRIA_VAZIA = { caixa: 1, descricao: '', valor: 0 };
+
+// Ajuste de cartão/pix em branco (soma ou subtrai do real da maquininha).
+const AJUSTE_VAZIO = { tipo: 'subtrai', descricao: '', valor: 0 };
+
 // Estado inicial do formulário (todos os valores zerados).
 function estadoInicial(data) {
   return {
@@ -46,23 +52,31 @@ function estadoInicial(data) {
     maq1Cartao: 0, maq1Pix: 0, maq2Cartao: 0, maq2Pix: 0,
     maq3Cartao: 0, maq3Pix: 0, maq4Cartao: 0, maq4Pix: 0,
     pixChaveDireta: 0,
-    cedulasCaixa1: 0, cedulasCaixa2: 0,
+    // Dinheiro (fluxo por caixa)
+    aberturaCaixa1: 0, aberturaCaixa2: 0,
+    suprimentoCaixa1: 0, suprimentoCaixa2: 0,
+    fechamentoCaixa1: 0, fechamentoCaixa2: 0,
+    desejadoCaixa1: 0, desejadoCaixa2: 0,
+    sangrias: [],
+    ajustesCartao: [],
+    // Sábado
     moedasCaixa1: 0, moedasCaixa2: 0,
-    fundoFixoCaixa1Usado: 0, fundoFixoCaixa2Usado: 0,
   };
 }
 
-// Campos que vêm da API (camelCase) e preenchem o formulário ao carregar um dia.
+// Campos numéricos que vêm da API (camelCase) e preenchem o formulário ao carregar.
 const CAMPOS_FORM = [
-  'observacoes',
   'numeroVendas',
   'microvixCredito', 'microvixDebito', 'microvixVoucher', 'microvixPix',
   'microvixDinheiro', 'microvixAPrazo', 'microvixIfood',
   'maq1Cartao', 'maq1Pix', 'maq2Cartao', 'maq2Pix',
   'maq3Cartao', 'maq3Pix', 'maq4Cartao', 'maq4Pix',
-  'pixChaveDireta', 'cedulasCaixa1', 'cedulasCaixa2',
+  'pixChaveDireta',
+  'aberturaCaixa1', 'aberturaCaixa2',
+  'suprimentoCaixa1', 'suprimentoCaixa2',
+  'fechamentoCaixa1', 'fechamentoCaixa2',
+  'desejadoCaixa1', 'desejadoCaixa2',
   'moedasCaixa1', 'moedasCaixa2',
-  'fundoFixoCaixa1Usado', 'fundoFixoCaixa2Usado',
 ];
 
 export default function Fechamento({ alvoData = null, alvoToken = 0, usuario = null }) {
@@ -77,6 +91,12 @@ export default function Fechamento({ alvoData = null, alvoToken = 0, usuario = n
   const [pendenciasAbertas, setPendenciasAbertas] = useState([]);
   const [novaPendencia, setNovaPendencia] = useState(PENDENCIA_VAZIA);
 
+  // Lançamento de sangria em edição (antes de adicionar à lista do dia).
+  const [novaSangria, setNovaSangria] = useState(SANGRIA_VAZIA);
+
+  // Ajuste de cartão/pix em edição (soma ou subtrai do real da maquininha).
+  const [novoAjuste, setNovoAjuste] = useState(AJUSTE_VAZIO);
+
   // Texto do relatório para impressão (null = sem pré-visualização aberta).
   const [relatorio, setRelatorio] = useState(null);
 
@@ -85,6 +105,10 @@ export default function Fechamento({ alvoData = null, alvoToken = 0, usuario = n
   // Total de moedas no caixa registrado no sábado anterior (as moedas não são
   // retiradas; o que conta é o crescimento do estoque desde então).
   const [moedasSemanaAnterior, setMoedasSemanaAnterior] = useState(0);
+  // É o PRIMEIRO sábado contado (não há sábado anterior no sistema)? Nesse caso o
+  // operador informa quanto de moeda já havia no caixa (a base), para as moedas
+  // pré-existentes não virarem uma "sobra" falsa.
+  const [primeiroSabado, setPrimeiroSabado] = useState(false);
 
   const sabado = ehSabado(form.data);
 
@@ -97,7 +121,8 @@ export default function Fechamento({ alvoData = null, alvoToken = 0, usuario = n
   }, []);
 
   // Sempre que muda a data (ou as configurações chegam), carrega o fechamento
-  // daquele dia, se existir; senão, reseta com o fundo fixo atual da config.
+  // daquele dia, se existir; senão, abre em branco com a ABERTURA preenchida a
+  // partir do "desejado" do último fechamento anterior.
   useEffect(() => {
     if (!config) return;
     let cancelado = false;
@@ -109,15 +134,31 @@ export default function Fechamento({ alvoData = null, alvoToken = 0, usuario = n
           const carregado = { data: fech.data };
           for (const k of CAMPOS_FORM) carregado[k] = fech[k] ?? 0;
           carregado.observacoes = fech.observacoes ?? '';
+          carregado.sangrias = Array.isArray(fech.sangrias) ? fech.sangrias : [];
+          carregado.ajustesCartao = Array.isArray(fech.ajustesCartao) ? fech.ajustesCartao : [];
           setForm(carregado);
           setMensagem(`Fechamento de ${formatarData(fech.data)} carregado (${fech.status}).`);
         } else {
-          setForm((f) => ({
-            ...estadoInicial(f.data),
-            fundoFixoCaixa1Usado: config.fundoFixoCaixa1,
-            fundoFixoCaixa2Usado: config.fundoFixoCaixa2,
-          }));
-          setMensagem('');
+          // Dia novo: puxa a abertura do "desejado" do fechamento anterior.
+          fetch('/api/fechamentos')
+            .then((r) => r.json())
+            .then((lista) => {
+              if (cancelado) return;
+              const ant = (Array.isArray(lista) ? lista : [])
+                .filter((f) => f.data < form.data)
+                .sort((a, b) => (a.data < b.data ? 1 : -1))[0];
+              setForm({
+                ...estadoInicial(form.data),
+                aberturaCaixa1: ant ? Number(ant.desejadoCaixa1) || 0 : 0,
+                aberturaCaixa2: ant ? Number(ant.desejadoCaixa2) || 0 : 0,
+              });
+              setMensagem(
+                ant
+                  ? 'Abertura preenchida com o saldo desejado do dia anterior (edite se contou diferente).'
+                  : ''
+              );
+            })
+            .catch(() => { if (!cancelado) setForm(estadoInicial(form.data)); });
         }
       });
     return () => { cancelado = true; };
@@ -146,7 +187,7 @@ export default function Fechamento({ alvoData = null, alvoToken = 0, usuario = n
   // diferença de dinheiro, e o total de moedas do sábado anterior (o estoque de
   // moedas não é zerado entre semanas). O sábado atual entra ao vivo.
   useEffect(() => {
-    if (!sabado) { setFechamentosSemana([]); setMoedasSemanaAnterior(0); return; }
+    if (!sabado) { setFechamentosSemana([]); setMoedasSemanaAnterior(0); setPrimeiroSabado(false); return; }
     const { segunda, sabado: sab } = semanaDe(form.data);
     fetch('/api/fechamentos')
       .then((r) => r.json())
@@ -159,11 +200,16 @@ export default function Fechamento({ alvoData = null, alvoToken = 0, usuario = n
           .filter((f) => f.diaSemana === 'sabado' && f.data < form.data)
           .sort((a, b) => (a.data < b.data ? 1 : -1));
         const ant = sabadosAnteriores[0];
-        setMoedasSemanaAnterior(
-          ant ? (Number(ant.moedasCaixa1) || 0) + (Number(ant.moedasCaixa2) || 0) : 0
-        );
+        if (ant) {
+          setPrimeiroSabado(false);
+          setMoedasSemanaAnterior((Number(ant.moedasCaixa1) || 0) + (Number(ant.moedasCaixa2) || 0));
+        } else {
+          // Primeiro sábado: o operador informa a base (campo editável).
+          setPrimeiroSabado(true);
+          setMoedasSemanaAnterior(0);
+        }
       })
-      .catch(() => { setFechamentosSemana([]); setMoedasSemanaAnterior(0); });
+      .catch(() => { setFechamentosSemana([]); setMoedasSemanaAnterior(0); setPrimeiroSabado(false); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.data, sabado]);
 
@@ -176,6 +222,67 @@ export default function Fechamento({ alvoData = null, alvoToken = 0, usuario = n
   function setCampo(campo, valor) {
     setForm((f) => ({ ...f, [campo]: valor }));
   }
+
+  // Sangrias (retiradas do caixa para pagamentos) — lista do dia, por caixa.
+  function adicionarSangria(e) {
+    e.preventDefault();
+    if (!novaSangria.descricao.trim()) {
+      setMensagem('Informe a descrição da sangria.');
+      return;
+    }
+    setForm((f) => ({
+      ...f,
+      sangrias: [...(f.sangrias || []), {
+        caixa: Number(novaSangria.caixa) === 2 ? 2 : 1,
+        descricao: novaSangria.descricao.trim(),
+        valor: Number(novaSangria.valor) || 0,
+      }],
+    }));
+    setNovaSangria(SANGRIA_VAZIA);
+  }
+
+  function removerSangria(indice) {
+    setForm((f) => ({ ...f, sangrias: (f.sangrias || []).filter((_, i) => i !== indice) }));
+  }
+
+  // Somas das sangrias do dia por caixa (entram na conferência do dinheiro).
+  const somaSangria1 = useMemo(
+    () => (form.sangrias || []).filter((s) => Number(s.caixa) === 1).reduce((a, s) => a + (Number(s.valor) || 0), 0),
+    [form.sangrias]
+  );
+  const somaSangria2 = useMemo(
+    () => (form.sangrias || []).filter((s) => Number(s.caixa) === 2).reduce((a, s) => a + (Number(s.valor) || 0), 0),
+    [form.sangrias]
+  );
+
+  // Ajustes de cartão/pix — total com sinal (soma + / subtrai −).
+  function adicionarAjuste(e) {
+    e.preventDefault();
+    if (!novoAjuste.descricao.trim()) {
+      setMensagem('Informe a descrição do ajuste.');
+      return;
+    }
+    setForm((f) => ({
+      ...f,
+      ajustesCartao: [...(f.ajustesCartao || []), {
+        tipo: novoAjuste.tipo === 'soma' ? 'soma' : 'subtrai',
+        descricao: novoAjuste.descricao.trim(),
+        valor: Number(novoAjuste.valor) || 0,
+      }],
+    }));
+    setNovoAjuste(AJUSTE_VAZIO);
+  }
+
+  function removerAjuste(indice) {
+    setForm((f) => ({ ...f, ajustesCartao: (f.ajustesCartao || []).filter((_, i) => i !== indice) }));
+  }
+
+  const somaAjustes = useMemo(
+    () => (form.ajustesCartao || []).reduce(
+      (a, x) => a + (x.tipo === 'soma' ? (Number(x.valor) || 0) : -(Number(x.valor) || 0)), 0
+    ),
+    [form.ajustesCartao]
+  );
 
   // Somas das pendências do dia que entram na conferência (ambas subtraem).
   const somaAbertasHoje = useMemo(
@@ -253,17 +360,18 @@ export default function Fechamento({ alvoData = null, alvoToken = 0, usuario = n
     }
   }
 
-  // Conferência do dinheiro em tempo real.
+  // Conferência do dinheiro em tempo real (fluxo por caixa).
   const confDinheiro = useMemo(
     () => conferenciaDinheiro({
-      fundoFixoCaixa1: form.fundoFixoCaixa1Usado,
-      fundoFixoCaixa2: form.fundoFixoCaixa2Usado,
+      aberturaCaixa1: form.aberturaCaixa1, aberturaCaixa2: form.aberturaCaixa2,
+      suprimentoCaixa1: form.suprimentoCaixa1, suprimentoCaixa2: form.suprimentoCaixa2,
+      fechamentoCaixa1: form.fechamentoCaixa1, fechamentoCaixa2: form.fechamentoCaixa2,
+      desejadoCaixa1: form.desejadoCaixa1, desejadoCaixa2: form.desejadoCaixa2,
+      sangriaCaixa1: somaSangria1, sangriaCaixa2: somaSangria2,
       microvixDinheiro: form.microvixDinheiro,
-      cedulasCaixa1: form.cedulasCaixa1,
-      cedulasCaixa2: form.cedulasCaixa2,
       limiteDiferencaMoeda: config?.limiteDiferencaMoeda ?? 0,
     }),
-    [form, config]
+    [form, config, somaSangria1, somaSangria2]
   );
 
   // Conferência de cartão/pix em tempo real (pendências entram nos próximos passos).
@@ -280,8 +388,9 @@ export default function Fechamento({ alvoData = null, alvoToken = 0, usuario = n
       pixChaveDireta: form.pixChaveDireta,
       pendenciasAbertas: somaAbertasHoje,
       pendenciasRecebidas: somaRecebidasHoje,
+      ajustesCartao: somaAjustes,
     }),
-    [form, somaAbertasHoje, somaRecebidasHoje]
+    [form, somaAbertasHoje, somaRecebidasHoje, somaAjustes]
   );
 
   // Acumulado semanal de moedas (só no sábado): soma as diferenças de dinheiro
@@ -334,6 +443,7 @@ export default function Fechamento({ alvoData = null, alvoToken = 0, usuario = n
         confCartao,
         pendenciasDia,
         acumulado,
+        primeiroSabado,
         operador: usuario?.nome || '',
       })
     );
@@ -393,13 +503,104 @@ export default function Fechamento({ alvoData = null, alvoToken = 0, usuario = n
           </section>
 
           <section className="secao">
+            <h2><span aria-hidden="true">🧮</span> Ajustes de cartão/pix</h2>
+            <p className="secao__ajuda">
+              Para o que entra/sai da maquininha mas <strong>não é venda de hoje</strong>
+              (ex.: convênio pagando fiado via cartão). Soma ou subtrai do real.
+            </p>
+            <form className="sangria-form" onSubmit={adicionarAjuste}>
+              <select
+                value={novoAjuste.tipo}
+                onChange={(e) => setNovoAjuste((a) => ({ ...a, tipo: e.target.value }))}
+              >
+                <option value="subtrai">Subtrai (−)</option>
+                <option value="soma">Soma (+)</option>
+              </select>
+              <input
+                type="text"
+                placeholder="Descrição (ex.: convênio pagou fiado)"
+                value={novoAjuste.descricao}
+                onChange={(e) => setNovoAjuste((a) => ({ ...a, descricao: e.target.value }))}
+              />
+              <input
+                type="number"
+                step="0.01"
+                placeholder="Valor"
+                value={novoAjuste.valor || ''}
+                onChange={(e) => setNovoAjuste((a) => ({ ...a, valor: e.target.value }))}
+              />
+              <button type="submit">+ Adicionar</button>
+            </form>
+
+            {(form.ajustesCartao || []).length > 0 && (
+              <div className="pendencia-lista">
+                {form.ajustesCartao.map((a, i) => (
+                  <div className="pendencia-item" key={i}>
+                    <span>{a.tipo === 'soma' ? '(+)' : '(−)'} {a.descricao}</span>
+                    <strong>{formatarBRL(a.valor)}</strong>
+                    <button type="button" onClick={() => removerAjuste(i)} title="Excluir">✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="secao">
             <h2><span aria-hidden="true">💵</span> Dinheiro</h2>
-            <CampoValor id="ced-1" label="Cédulas caixa 1" value={form.cedulasCaixa1} onChange={(v) => setCampo('cedulasCaixa1', v)} />
-            <CampoValor id="ced-2" label="Cédulas caixa 2" value={form.cedulasCaixa2} onChange={(v) => setCampo('cedulasCaixa2', v)} />
+            <p className="secao__ajuda">
+              Por caixa: quanto abriu, quanto fechou (cédulas contadas), suprimentos,
+              sangrias e quanto quer deixar para o próximo dia.
+            </p>
+
             <div className="secao__par">
-              <CampoValor id="fundo-1" label="Fundo fixo caixa 1" value={form.fundoFixoCaixa1Usado} onChange={(v) => setCampo('fundoFixoCaixa1Usado', v)} />
-              <CampoValor id="fundo-2" label="Fundo fixo caixa 2" value={form.fundoFixoCaixa2Usado} onChange={(v) => setCampo('fundoFixoCaixa2Usado', v)} />
+              {[1, 2].map((c) => (
+                <div className="caixa-bloco" key={c}>
+                  <h3>Caixa {c}</h3>
+                  <CampoValor id={`abertura-${c}`} label="Abertura (início do dia)" value={form[`aberturaCaixa${c}`]} onChange={(v) => setCampo(`aberturaCaixa${c}`, v)} />
+                  <CampoValor id={`suprimento-${c}`} label="Suprimento (opcional)" value={form[`suprimentoCaixa${c}`]} onChange={(v) => setCampo(`suprimentoCaixa${c}`, v)} />
+                  <CampoValor id={`fechamento-${c}`} label="Fechamento (contado)" value={form[`fechamentoCaixa${c}`]} onChange={(v) => setCampo(`fechamentoCaixa${c}`, v)} />
+                  <CampoValor id={`desejado-${c}`} label="Deixar p/ próximo dia" value={form[`desejadoCaixa${c}`]} onChange={(v) => setCampo(`desejadoCaixa${c}`, v)} />
+                </div>
+              ))}
             </div>
+
+            {/* Sangrias — retiradas de dinheiro do caixa para pagamentos */}
+            <h3 className="sangria-titulo">Sangrias (retiradas para pagamento)</h3>
+            <form className="sangria-form" onSubmit={adicionarSangria}>
+              <select
+                value={novaSangria.caixa}
+                onChange={(e) => setNovaSangria((s) => ({ ...s, caixa: Number(e.target.value) }))}
+              >
+                <option value={1}>Caixa 1</option>
+                <option value={2}>Caixa 2</option>
+              </select>
+              <input
+                type="text"
+                placeholder="Descrição (ex.: pagamento entregador)"
+                value={novaSangria.descricao}
+                onChange={(e) => setNovaSangria((s) => ({ ...s, descricao: e.target.value }))}
+              />
+              <input
+                type="number"
+                step="0.01"
+                placeholder="Valor"
+                value={novaSangria.valor || ''}
+                onChange={(e) => setNovaSangria((s) => ({ ...s, valor: e.target.value }))}
+              />
+              <button type="submit">+ Adicionar</button>
+            </form>
+
+            {(form.sangrias || []).length > 0 && (
+              <div className="pendencia-lista">
+                {form.sangrias.map((s, i) => (
+                  <div className="pendencia-item" key={i}>
+                    <span>Caixa {s.caixa} · {s.descricao}</span>
+                    <strong>{formatarBRL(s.valor)}</strong>
+                    <button type="button" onClick={() => removerSangria(i)} title="Excluir">✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
 
           {sabado && (
@@ -413,6 +614,22 @@ export default function Fechamento({ alvoData = null, alvoToken = 0, usuario = n
                 <CampoValor id="moedas-1" label="Moedas caixa 1 (total no caixa)" value={form.moedasCaixa1} onChange={(v) => setCampo('moedasCaixa1', v)} />
                 <CampoValor id="moedas-2" label="Moedas caixa 2 (total no caixa)" value={form.moedasCaixa2} onChange={(v) => setCampo('moedasCaixa2', v)} />
               </div>
+
+              {primeiroSabado && (
+                <>
+                  <p className="secao__ajuda" style={{ marginTop: '0.8rem' }}>
+                    <strong>Primeiro sábado:</strong> informe quanto de moeda <strong>já havia</strong> no
+                    caixa antes de começar a usar o sistema, para essas moedas antigas não virarem
+                    uma sobra falsa. (Depois disso, fica automático.)
+                  </p>
+                  <CampoValor
+                    id="moedas-base"
+                    label="Moedas que já havia (base, caixa 1 + 2)"
+                    value={moedasSemanaAnterior}
+                    onChange={(v) => setMoedasSemanaAnterior(v)}
+                  />
+                </>
+              )}
             </section>
           )}
 
@@ -470,6 +687,7 @@ export default function Fechamento({ alvoData = null, alvoToken = 0, usuario = n
                     <span>{p.descricao} · {formatarData(p.dataAbertura)}</span>
                     <strong>{formatarBRL(p.valor)}</strong>
                     <button type="button" onClick={() => receberPendencia(p.id)}>Receber</button>
+                    <button type="button" onClick={() => excluirPendencia(p.id)} title="Excluir">✕</button>
                   </div>
                 ))}
               </div>
@@ -508,22 +726,37 @@ export default function Fechamento({ alvoData = null, alvoToken = 0, usuario = n
           <Conferencia
             titulo="Conferência — Dinheiro"
             linhas={[
-              { label: 'Esperado', valor: confDinheiro.dinheiroEsperado },
-              { label: 'Contado (cédulas)', valor: confDinheiro.dinheiroContado },
-              { label: 'Sangria caixa 1', valor: confDinheiro.sangriaCaixa1 },
-              { label: 'Sangria caixa 2', valor: confDinheiro.sangriaCaixa2 },
+              { label: 'Abertura (total)', valor: confDinheiro.totalAbertura },
+              { label: '(+) Suprimento', valor: confDinheiro.totalSuprimento },
+              { label: '(−) Sangrias', valor: confDinheiro.totalSangria },
+              { label: 'Esperado (c/ Microvix)', valor: confDinheiro.dinheiroEsperado },
+              { label: 'Contado (fechamento)', valor: confDinheiro.dinheiroContado },
             ]}
             resultado={{ label: 'Diferença', valor: confDinheiro.diferencaDinheiro }}
             alerta={confDinheiro.provavelMoeda ? 'Provável troco em moeda' : ''}
+          />
+          <Conferencia
+            titulo="Retirada do fim do dia"
+            linhas={[
+              { label: 'Retirar do caixa 1', valor: confDinheiro.retirarCaixa1 },
+              { label: 'Retirar do caixa 2', valor: confDinheiro.retirarCaixa2 },
+            ]}
+            resultado={{ label: 'Total a retirar', valor: confDinheiro.totalRetirar }}
+            alerta="Retire isso para deixar o desejado em cada caixa"
           />
           <Conferencia
             titulo="Conferência — Cartão e Pix"
             linhas={[
               { label: 'Microvix', valor: confCartao.totalMicrovixCartaoPix },
               { label: 'Real maquininhas', valor: confCartao.totalRealMaquininhas },
-              { label: '(−) Pendências abertas', valor: confCartao.pendenciasAbertas },
-              { label: '(−) Pendências recebidas', valor: confCartao.pendenciasRecebidas },
-              { label: 'Real ajustado', valor: confCartao.realAjustado },
+              ...(confCartao.pendenciasAbertas || confCartao.pendenciasRecebidas || confCartao.ajustesCartao
+                ? [
+                    ...(confCartao.pendenciasAbertas ? [{ label: '(+) Pendências abertas', valor: confCartao.pendenciasAbertas }] : []),
+                    ...(confCartao.pendenciasRecebidas ? [{ label: '(−) Pendências recebidas', valor: confCartao.pendenciasRecebidas }] : []),
+                    ...(confCartao.ajustesCartao ? [{ label: 'Ajustes', valor: confCartao.ajustesCartao }] : []),
+                    { label: 'Real ajustado', valor: confCartao.realAjustado },
+                  ]
+                : []),
             ]}
             resultado={{ label: 'Diferença', valor: confCartao.diferencaCartaoPix }}
             alerta={confCartao.diferencaCartaoPix !== 0 ? 'Atenção: diferença a investigar' : ''}
@@ -534,7 +767,7 @@ export default function Fechamento({ alvoData = null, alvoToken = 0, usuario = n
               linhas={[
                 { label: 'Dif. acumulada (semana)', valor: acumulado.acumulado },
                 { label: 'Moedas no caixa (total)', valor: acumulado.totalMoedas },
-                { label: 'Sábado anterior', valor: acumulado.moedasSemanaAnterior },
+                { label: primeiroSabado ? 'Base inicial' : 'Sábado anterior', valor: acumulado.moedasSemanaAnterior },
                 { label: 'Moedas desta semana', valor: acumulado.moedasDaSemana },
               ]}
               resultado={{ label: 'Saldo não explicado', valor: acumulado.saldoNaoExplicado }}

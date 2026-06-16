@@ -62,26 +62,48 @@
   overflow-x: auto;
 }
 
-/* Na impressão, esconde tudo menos o relatório. */
+/* Na impressão: esconde TODO o app (#root) e imprime só o relatório (que fica
+   no <body>, fora do #root, via portal). Assim não sobra página em branco. */
+@page {
+  size: 80mm auto; /* largura da bobina (impressora classe 80mm); altura contínua */
+  margin: 0;       /* sem margens do navegador — usa a largura toda */
+}
 @media print {
-  body * {
-    visibility: hidden;
+  #root {
+    display: none !important;
   }
-  .relatorio-print,
-  .relatorio-print * {
-    visibility: visible;
+  .relatorio-overlay {
+    position: static !important;
+    inset: auto !important;
+    display: block !important;
+    background: none !important;
+    padding: 0 !important;
+    overflow: visible !important;
   }
-  .relatorio-print {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 58mm;
-    border: none;
-    background: #fff;
-    padding: 0;
-    font-size: 11px;
+  .relatorio-modal {
+    width: auto !important;
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: #fff !important;
   }
   .no-print {
     display: none !important;
+  }
+  .relatorio-print {
+    border: none;
+    background: #fff;
+    padding: 0;
+    margin: 0;
+    /* PRETO PURO + negrito escurece a térmica SEM alargar a linha. 12px deixa os
+       32 caracteres em ~61mm: bem maior que o original e com FOLGA na direita, pra
+       o último dígito não encostar na borda imprimível. */
+    font-size: 12px;
+    font-weight: 700;
+    color: #000;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 }

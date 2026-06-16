@@ -12,9 +12,12 @@ const SEP = '='.repeat(LARGURA);
 const SUB = '-'.repeat(LARGURA);
 
 // Uma linha "rótulo .... valor" com o valor alinhado à direita na largura fixa.
-// `deducao` mostra o valor como "- R$ x" (abate na conferência).
-function linha(rotulo, valor, deducao = false) {
-  const dir = deducao ? `- ${formatarBRL(valor)}` : formatarBRL(valor);
+// `sinal`: true ou '-' => "- R$ x" (subtrai); '+' => "+ R$ x" (soma); '' => "R$ x".
+function linha(rotulo, valor, sinal = false) {
+  let dir;
+  if (sinal === true || sinal === '-') dir = `- ${formatarBRL(valor)}`;
+  else if (sinal === '+') dir = `+ ${formatarBRL(valor)}`;
+  else dir = formatarBRL(valor);
   const espacos = Math.max(1, LARGURA - rotulo.length - dir.length);
   return rotulo + ' '.repeat(espacos) + dir;
 }
@@ -32,6 +35,7 @@ export function montarRelatorio({
   confCartao,
   pendenciasDia = [],
   acumulado = null,
+  primeiroSabado = false,
   operador = '',
 }) {
   const nomeMaq = (i) => config?.[`nomeMaquina${i}`] || `Máquina ${i}`;
@@ -67,47 +71,60 @@ export function montarRelatorio({
   L.push(linha('Total maquininhas:', confCartao.totalRealMaquininhas));
   L.push(SEP);
 
-  // --- Dinheiro ---
-  L.push('REAL RECEBIDO - DINHEIRO');
-  L.push(linha('Caixa 1 cédulas:', form.cedulasCaixa1));
-  L.push(linha('Caixa 2 cédulas:', form.cedulasCaixa2));
-  L.push(SUB);
-  L.push(linha('Total cédulas:', confDinheiro.dinheiroContado));
-  L.push(linha('Fundo fixo:', confDinheiro.fundoFixoTotal, true));
-  L.push(linha('Dinheiro real:', confDinheiro.dinheiroReal));
-  L.push(linha('Sangria caixa 1:', confDinheiro.sangriaCaixa1));
-  L.push(linha('Sangria caixa 2:', confDinheiro.sangriaCaixa2));
-  L.push(linha('Total sangria:', confDinheiro.totalSangria));
-  L.push(SEP);
-
-  // --- Registros sem conferência ---
-  L.push('REGISTROS - SEM CONFERÊNCIA');
-  L.push(`${linha('A prazo:', form.microvixAPrazo)}`);
-  L.push('  (a receber)');
-  L.push(`${linha('iFood:', form.microvixIfood)}`);
-  L.push('  (repasse futuro)');
-  L.push(SEP);
-
-  // --- Conferência dinheiro ---
-  L.push('CONFERÊNCIA - DINHEIRO');
-  L.push(linha('Esperado:', confDinheiro.dinheiroEsperado));
-  L.push(linha('Contado:', confDinheiro.dinheiroContado));
-  L.push(linha('Diferença:', confDinheiro.diferencaDinheiro));
-  if (confDinheiro.provavelMoeda) L.push('  -> Provável troco em moeda');
-  L.push(SEP);
-
-  // --- Conferência cartão/pix ---
+  // --- Conferência cartão/pix (sem a diferença; vai para o resumo final) ---
   L.push('CONFERÊNCIA - CARTÃO E PIX');
   L.push(linha('Microvix:', confCartao.totalMicrovixCartaoPix));
   L.push(linha('Real maquininhas:', confCartao.totalRealMaquininhas));
+  // "Real ajustado" só aparece quando há pendências ou ajustes (senão = real).
+  const temAjuste = (confCartao.ajustesCartao || 0) !== 0;
+  const temPendencias = confCartao.pendenciasRecebidas || confCartao.pendenciasAbertas;
+  if (confCartao.pendenciasAbertas) {
+    L.push(linha('Pend. abertas:', confCartao.pendenciasAbertas, '+'));
+  }
   if (confCartao.pendenciasRecebidas) {
     L.push(linha('Pend. recebidas:', confCartao.pendenciasRecebidas, true));
   }
-  if (confCartao.pendenciasAbertas) {
-    L.push(linha('Novas pendências:', confCartao.pendenciasAbertas, true));
-  }
-  const difCartao = confCartao.diferencaCartaoPix;
-  L.push(`${linha('Diferença:', difCartao)}${difCartao !== 0 ? ' (atencao)' : ''}`);
+  if (temAjuste) L.push(linha('Ajustes:', confCartao.ajustesCartao));
+  if (temPendencias || temAjuste) L.push(linha('Real ajustado:', confCartao.realAjustado));
+  L.push(SEP);
+
+  // --- Dinheiro (fluxo por caixa) ---
+  L.push('DINHEIRO - CAIXA 1');
+  L.push(linha('Abertura:', form.aberturaCaixa1));
+  L.push(linha('Fechamento:', form.fechamentoCaixa1));
+  L.push('DINHEIRO - CAIXA 2');
+  L.push(linha('Abertura:', form.aberturaCaixa2));
+  L.push(linha('Fechamento:', form.fechamentoCaixa2));
+  L.push(SUB);
+  L.push(linha('Total suprimento:', confDinheiro.totalSuprimento));
+  L.push(linha('Total sangria:', confDinheiro.totalSangria));
+  L.push(SUB);
+  L.push('RETIRADO NO FIM DO DIA');
+  L.push(linha('Caixa 1:', confDinheiro.retirarCaixa1));
+  L.push(linha('Caixa 2:', confDinheiro.retirarCaixa2));
+  L.push(linha('Total retirado:', confDinheiro.totalRetirar));
+  L.push(SUB);
+  L.push('FICOU NO CAIXA (próximo dia)');
+  L.push(linha('Caixa 1:', form.desejadoCaixa1));
+  L.push(linha('Caixa 2:', form.desejadoCaixa2));
+  L.push(SEP);
+
+  // --- Conferência dinheiro (sem a diferença; vai para o resumo final) ---
+  L.push('CONFERÊNCIA - DINHEIRO');
+  L.push(linha('Esperado:', confDinheiro.dinheiroEsperado));
+  L.push(linha('Contado:', confDinheiro.dinheiroContado));
+  L.push(SEP);
+
+  // --- Diferenças (resumo final) ---
+  const difMaquina = confCartao.diferencaCartaoPix;
+  const difDinheiro = confDinheiro.diferencaDinheiro;
+  const difTotal = Math.round((difMaquina + difDinheiro) * 100) / 100;
+  L.push('DIFERENÇAS');
+  L.push(`${linha('Diferença máquina:', difMaquina)}${difMaquina !== 0 ? ' (atencao)' : ''}`);
+  L.push(`${linha('Diferença dinheiro:', difDinheiro)}${difDinheiro !== 0 ? ' (atencao)' : ''}`);
+  if (confDinheiro.provavelMoeda) L.push('  -> Provável troco em moeda');
+  L.push(SUB);
+  L.push(`${linha('DIFERENÇA TOTAL:', difTotal)}${difTotal !== 0 ? ' (atencao)' : ''}`);
   L.push(SEP);
 
   // --- Pendências recebidas hoje ---
@@ -141,7 +158,8 @@ export function montarRelatorio({
     L.push(linha('Moedas caixa 1:', form.moedasCaixa1));
     L.push(linha('Moedas caixa 2:', form.moedasCaixa2));
     L.push(linha('Total no caixa:', acumulado.totalMoedas));
-    L.push(linha('Sábado anterior:', acumulado.moedasSemanaAnterior, true));
+    // No primeiro sábado o valor anterior é a base que já havia (não um sábado real).
+    L.push(linha(primeiroSabado ? 'Base inicial:' : 'Sábado anterior:', acumulado.moedasSemanaAnterior, true));
     L.push(linha('Moedas da semana:', acumulado.moedasDaSemana));
     L.push(linha('Dif. acumulada:', acumulado.acumulado));
     const saldo = acumulado.saldoNaoExplicado;

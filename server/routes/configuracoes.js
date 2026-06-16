@@ -19,8 +19,6 @@ const COLS_TEXTO = [
   ['nome_maquina_4', 'nomeMaquina4'],
 ];
 const COLS_NUM = [
-  ['fundo_fixo_caixa_1', 'fundoFixoCaixa1'],
-  ['fundo_fixo_caixa_2', 'fundoFixoCaixa2'],
   ['limite_diferenca_moeda', 'limiteDiferencaMoeda'],
 ];
 
@@ -32,8 +30,6 @@ function rowParaApi(row) {
     nomeMaquina2: row.nome_maquina_2,
     nomeMaquina3: row.nome_maquina_3,
     nomeMaquina4: row.nome_maquina_4,
-    fundoFixoCaixa1: row.fundo_fixo_caixa_1,
-    fundoFixoCaixa2: row.fundo_fixo_caixa_2,
     limiteDiferencaMoeda: row.limite_diferenca_moeda,
   };
 }

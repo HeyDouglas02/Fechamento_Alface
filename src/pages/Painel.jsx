@@ -99,7 +99,7 @@ export default function Painel() {
     const fatTotal = lista.reduce((s, f) => s + faturamento(f), 0);
     const totalVendas = lista.reduce((s, f) => s + n(f.numeroVendas), 0);
     const difCaixa = lista.reduce((s, f) => s + n(f.diferencaDinheiro) + n(f.diferencaCartaoPix), 0);
-    const recebido = lista.reduce((s, f) => s + n(f.totalRealMaquininhas) + n(f.dinheiroReal), 0);
+    const recebido = lista.reduce((s, f) => s + n(f.totalRealMaquininhas) + n(f.microvixDinheiro), 0);
 
     const comp = { credito: 0, debito: 0, voucher: 0, pix: 0, dinheiro: 0 };
     let aPrazo = 0, ifood = 0;

@@ -1,7 +1,6 @@
-// Configuracoes — edita os nomes das máquinas, o fundo fixo de cada caixa e o
-// limite de diferença de moeda. É a linha única de configuração (estado atual).
-// Mudar o fundo fixo aqui NÃO altera fechamentos passados: cada fechamento
-// guarda o fundo fixo como snapshot. A gestão de usuários entra com o Login.
+// Configuracoes — edita os nomes das máquinas e o limite de diferença de moeda.
+// É a linha única de configuração (estado atual). A gestão de operadores também
+// fica aqui.
 
 import { useEffect, useState } from 'react';
 import './Configuracoes.css';
@@ -14,8 +13,6 @@ const CAMPOS_TEXTO = [
 ];
 
 const CAMPOS_NUM = [
-  ['fundoFixoCaixa1', 'Fundo fixo caixa 1 (R$)'],
-  ['fundoFixoCaixa2', 'Fundo fixo caixa 2 (R$)'],
   ['limiteDiferencaMoeda', 'Limite de diferença de moeda (R$)'],
 ];
 
@@ -142,8 +139,8 @@ export default function Configuracoes() {
             </label>
           ))}
           <p className="config-aviso">
-            Alterar o fundo fixo não muda fechamentos já registrados — cada dia guarda o
-            valor usado na época.
+            Diferenças de dinheiro abaixo desse limite são tratadas como provável troco
+            em moeda.
           </p>
         </section>
 

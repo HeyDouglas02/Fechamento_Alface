@@ -102,13 +102,11 @@ Total real maquininhas    = soma de (cartão + pix) das 4 máquinas + pix chave 
 
 Diferença bruta = total real - total Microvix
 
-Ajuste de pendências:
-  - Pendência aberta no dia (Maria deve): está no Microvix, não na maquininha → SUBTRAI do cálculo
-  - Pendência recebida no dia (João pagou): está na maquininha, não no Microvix daquele dia → SUBTRAI do cálculo
+Ajuste de pendências (sinais OPOSTOS — cada uma explica um lado da diferença):
+  - Pendência ABERTA (Maria deve): está no Microvix, não na maquininha → a máquina ficou a MENOS → SOMA de volta (+)
+  - Pendência RECEBIDA (João pagou hoje compra de outro dia): está na maquininha, não no Microvix de hoje → a máquina ficou a MAIS → SUBTRAI (−)
 
-Os dois tipos de pendência SUBTRAEM (ambos são valores que precisam sair para isolar o movimento real do dia).
-
-Real ajustado  = total real maquininhas - pendências (abertas + recebidas)
+Real ajustado  = total real maquininhas + abertas − recebidas
 Diferença real = real ajustado - total Microvix     (− faltou, + sobrou)
 ```
 
@@ -116,7 +114,7 @@ Resultado mostrado com sinal (mesma convenção intuitiva da conferência de din
 - `−` faltou (entrou menos do que o Microvix registrou)
 - `+` sobrou (entrou mais do que o Microvix registrou)
 
-Exemplo João (recebida 50) + Maria (aberta 80): real ajustado 2720 − Microvix 2750 = **−30** (faltou).
+Exemplo: Maria (aberta 80) sozinha, com máquina 80 a menos que o Microvix → real ajustado soma 80 → diferença **0** (a pendência explica a falta). Quando casam, João (recebida) + Maria (aberta) zeram a diferença.
 
 A prazo e iFood NÃO entram em nenhuma conferência — são apenas registrados para controle (a prazo é venda fiada que não gera entrada de dinheiro hoje; iFood é repasse futuro, usa-se o valor que aparece no Microvix mesmo).
 

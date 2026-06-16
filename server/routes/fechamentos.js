@@ -2,7 +2,8 @@
 //
 // Os valores calculados são gravados no banco (histórico imutável): o servidor
 // recalcula com calculos.js no momento de salvar e persiste o resultado. O
-// fundo fixo usado vai como snapshot enviado pela tela.
+// dinheiro segue o fluxo por caixa (abertura, suprimento, sangrias, fechamento,
+// desejado). As sangrias vão como lista JSON na coluna `sangrias`.
 
 import express from 'express';
 import { calcularFechamento } from '../../src/utils/calculos.js';
@@ -10,8 +11,7 @@ import { calcularFechamento } from '../../src/utils/calculos.js';
 const router = express.Router();
 
 // Mapa coluna_no_banco <-> chave camelCase usada na API/tela. Explícito de
-// propósito: a conversão automática quebraria nas colunas com número
-// (ex.: fundo_fixo_caixa_1_usado).
+// propósito: a conversão automática quebraria nas colunas com número.
 const COLS_VALOR = [
   ['numero_vendas', 'numeroVendas'],
   ['microvix_credito', 'microvixCredito'],
@@ -26,19 +26,21 @@ const COLS_VALOR = [
   ['maq3_cartao', 'maq3Cartao'], ['maq3_pix', 'maq3Pix'],
   ['maq4_cartao', 'maq4Cartao'], ['maq4_pix', 'maq4Pix'],
   ['pix_chave_direta', 'pixChaveDireta'],
-  ['cedulas_caixa_1', 'cedulasCaixa1'], ['cedulas_caixa_2', 'cedulasCaixa2'],
+  ['abertura_caixa_1', 'aberturaCaixa1'], ['abertura_caixa_2', 'aberturaCaixa2'],
+  ['suprimento_caixa_1', 'suprimentoCaixa1'], ['suprimento_caixa_2', 'suprimentoCaixa2'],
+  ['fechamento_caixa_1', 'fechamentoCaixa1'], ['fechamento_caixa_2', 'fechamentoCaixa2'],
+  ['desejado_caixa_1', 'desejadoCaixa1'], ['desejado_caixa_2', 'desejadoCaixa2'],
   ['moedas_caixa_1', 'moedasCaixa1'], ['moedas_caixa_2', 'moedasCaixa2'],
-  ['fundo_fixo_caixa_1_usado', 'fundoFixoCaixa1Usado'],
-  ['fundo_fixo_caixa_2_usado', 'fundoFixoCaixa2Usado'],
 ];
 
 const COLS_CALC = [
   ['total_maquininhas', 'totalRealMaquininhas'],
   ['total_maquininhas_microvix', 'totalMicrovixCartaoPix'],
   ['dinheiro_esperado', 'dinheiroEsperado'],
-  ['dinheiro_real', 'dinheiroReal'],
   ['sangria_caixa_1', 'sangriaCaixa1'],
   ['sangria_caixa_2', 'sangriaCaixa2'],
+  ['retirar_caixa_1', 'retirarCaixa1'],
+  ['retirar_caixa_2', 'retirarCaixa2'],
   ['diferenca_dinheiro', 'diferencaDinheiro'],
   ['diferenca_cartao_pix', 'diferencaCartaoPix'],
 ];
@@ -57,9 +59,11 @@ const LABELS = {
   maq3_cartao: 'Máq. 3 cartão', maq3_pix: 'Máq. 3 pix',
   maq4_cartao: 'Máq. 4 cartão', maq4_pix: 'Máq. 4 pix',
   pix_chave_direta: 'Pix chave direta',
-  cedulas_caixa_1: 'Cédulas caixa 1', cedulas_caixa_2: 'Cédulas caixa 2',
+  abertura_caixa_1: 'Abertura caixa 1', abertura_caixa_2: 'Abertura caixa 2',
+  suprimento_caixa_1: 'Suprimento caixa 1', suprimento_caixa_2: 'Suprimento caixa 2',
+  fechamento_caixa_1: 'Fechamento caixa 1', fechamento_caixa_2: 'Fechamento caixa 2',
+  desejado_caixa_1: 'Desejado caixa 1', desejado_caixa_2: 'Desejado caixa 2',
   moedas_caixa_1: 'Moedas caixa 1', moedas_caixa_2: 'Moedas caixa 2',
-  fundo_fixo_caixa_1_usado: 'Fundo fixo caixa 1', fundo_fixo_caixa_2_usado: 'Fundo fixo caixa 2',
 };
 
 // Compara o estado anterior com o novo e grava uma linha em log_edicoes por
@@ -98,6 +102,39 @@ function diaSemana(dataISO) {
 
 const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 
+// Lê a lista de sangrias (JSON) e devolve um array saneado de {caixa,descricao,valor}.
+function parseSangrias(valor) {
+  if (Array.isArray(valor)) return valor;
+  if (!valor) return [];
+  try {
+    const arr = JSON.parse(valor);
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
+
+function sanearSangrias(lista) {
+  return parseSangrias(lista)
+    .map((s) => ({
+      caixa: Number(s?.caixa) === 2 ? 2 : 1,
+      descricao: String(s?.descricao ?? '').trim(),
+      valor: num(s?.valor),
+    }))
+    .filter((s) => s.descricao || s.valor);
+}
+
+// Ajustes de cartão/pix (lista com sinal): {tipo:'soma'|'subtrai', descricao, valor}.
+function sanearAjustes(lista) {
+  return parseSangrias(lista)
+    .map((a) => ({
+      tipo: a?.tipo === 'soma' ? 'soma' : 'subtrai',
+      descricao: String(a?.descricao ?? '').trim(),
+      valor: num(a?.valor),
+    }))
+    .filter((a) => a.descricao || a.valor);
+}
+
 // Converte uma linha do banco (snake_case) para o formato da API (camelCase).
 function rowParaApi(row) {
   if (!row) return null;
@@ -108,6 +145,8 @@ function rowParaApi(row) {
     usuarioId: row.usuario_id,
     status: row.status,
     observacoes: row.observacoes,
+    sangrias: parseSangrias(row.sangrias),
+    ajustesCartao: parseSangrias(row.ajustes_cartao),
     criadoEm: row.criado_em,
     editadoEm: row.editado_em,
   };
@@ -166,6 +205,15 @@ router.post('/', (req, res) => {
   const valores = {};
   for (const [, key] of COLS_VALOR) valores[key] = num(body[key]);
 
+  // Sangrias do dia (lista por caixa). Some por caixa para o cálculo.
+  const sangrias = sanearSangrias(body.sangrias);
+  const sangriaCaixa1 = sangrias.filter((s) => s.caixa === 1).reduce((a, s) => a + s.valor, 0);
+  const sangriaCaixa2 = sangrias.filter((s) => s.caixa === 2).reduce((a, s) => a + s.valor, 0);
+
+  // Ajustes de cartão/pix (lista com sinal). Total com sinal: soma (+) / subtrai (−).
+  const ajustes = sanearAjustes(body.ajustesCartao);
+  const ajustesCartao = ajustes.reduce((a, x) => a + (x.tipo === 'soma' ? x.valor : -x.valor), 0);
+
   // Pendências do dia (vínculo por data): abertas neste dia e recebidas neste
   // dia ambas SUBTRAEM da conferência de cartão/pix. Lidas do banco para o
   // cálculo gravado refletir o estado real, não o que a tela enviou.
@@ -178,11 +226,12 @@ router.post('/', (req, res) => {
     [body.data]
   );
 
-  // Recalcula os derivados, já com as pendências do dia.
+  // Recalcula os derivados, já com sangrias e pendências do dia.
   const calc = calcularFechamento({
     ...valores,
-    fundoFixoCaixa1: valores.fundoFixoCaixa1Usado,
-    fundoFixoCaixa2: valores.fundoFixoCaixa2Usado,
+    sangriaCaixa1,
+    sangriaCaixa2,
+    ajustesCartao,
     limiteDiferencaMoeda: num(config.limite_diferenca_moeda),
     pendenciasAbertas: num(pAbertas?.s),
     pendenciasRecebidas: num(pRecebidas?.s),
@@ -195,6 +244,8 @@ router.post('/', (req, res) => {
     usuario_id: body.usuarioId ?? null,
     status: body.status === 'fechado' ? 'fechado' : 'rascunho',
     observacoes: body.observacoes ?? null,
+    sangrias: JSON.stringify(sangrias),
+    ajustes_cartao: JSON.stringify(ajustes),
   };
   for (const [col, key] of COLS_VALOR) colunas[col] = valores[key];
   for (const [col, key] of COLS_CALC) colunas[col] = num(calc[key]);

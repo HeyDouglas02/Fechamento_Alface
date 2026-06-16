@@ -22,15 +22,13 @@ CREATE TABLE IF NOT EXISTS configuracoes (
   nome_maquina_2         TEXT    NOT NULL DEFAULT 'Maquina 2',
   nome_maquina_3         TEXT    NOT NULL DEFAULT 'Maquina 3',
   nome_maquina_4         TEXT    NOT NULL DEFAULT 'Maquina 4',
-  fundo_fixo_caixa_1     REAL    NOT NULL DEFAULT 150.0,
-  fundo_fixo_caixa_2     REAL    NOT NULL DEFAULT 150.0,
   limite_diferenca_moeda REAL    NOT NULL DEFAULT 50.0
 );
 
 -- ---------------------------------------------------------------------------
 -- fechamentos: um registro por dia trabalhado.
--- Os valores calculados são SALVOS (histórico imutável); o fundo fixo usado
--- também é gravado como snapshot.
+-- Os valores calculados são SALVOS (histórico imutável). O dinheiro segue o
+-- fluxo por caixa: abertura, suprimento, sangrias, fechamento e desejado.
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS fechamentos (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -61,25 +59,30 @@ CREATE TABLE IF NOT EXISTS fechamentos (
   maq4_pix         REAL NOT NULL DEFAULT 0,
   pix_chave_direta REAL NOT NULL DEFAULT 0,
 
-  -- Dinheiro (cédulas contadas no dia)
-  cedulas_caixa_1 REAL NOT NULL DEFAULT 0,
-  cedulas_caixa_2 REAL NOT NULL DEFAULT 0,
+  -- Dinheiro (fluxo por caixa) — sem fundo fixo
+  abertura_caixa_1   REAL NOT NULL DEFAULT 0,   -- quanto o caixa tinha ao abrir
+  abertura_caixa_2   REAL NOT NULL DEFAULT 0,
+  suprimento_caixa_1 REAL NOT NULL DEFAULT 0,   -- dinheiro acrescentado no dia
+  suprimento_caixa_2 REAL NOT NULL DEFAULT 0,
+  fechamento_caixa_1 REAL NOT NULL DEFAULT 0,   -- total contado no fim (cédulas)
+  fechamento_caixa_2 REAL NOT NULL DEFAULT 0,
+  desejado_caixa_1   REAL NOT NULL DEFAULT 0,   -- quanto deixar p/ o próximo dia
+  desejado_caixa_2   REAL NOT NULL DEFAULT 0,
+  sangrias           TEXT,                      -- JSON: [{caixa,descricao,valor}]
+  ajustes_cartao     TEXT,                      -- JSON: [{tipo,descricao,valor}] soma/subtrai
 
   -- Sábado (moedas, contadas só no fechamento semanal)
   moedas_caixa_1 REAL NOT NULL DEFAULT 0,
   moedas_caixa_2 REAL NOT NULL DEFAULT 0,
 
-  -- Snapshot do fundo fixo usado no dia (histórico imutável)
-  fundo_fixo_caixa_1_usado REAL NOT NULL DEFAULT 0,
-  fundo_fixo_caixa_2_usado REAL NOT NULL DEFAULT 0,
-
   -- Calculados e SALVOS
   total_maquininhas         REAL NOT NULL DEFAULT 0,
   total_maquininhas_microvix REAL NOT NULL DEFAULT 0,
   dinheiro_esperado         REAL NOT NULL DEFAULT 0,
-  dinheiro_real             REAL NOT NULL DEFAULT 0,
-  sangria_caixa_1           REAL NOT NULL DEFAULT 0,
+  sangria_caixa_1           REAL NOT NULL DEFAULT 0,   -- soma das sangrias do caixa
   sangria_caixa_2           REAL NOT NULL DEFAULT 0,
+  retirar_caixa_1           REAL NOT NULL DEFAULT 0,   -- fechamento − desejado
+  retirar_caixa_2           REAL NOT NULL DEFAULT 0,
   diferenca_dinheiro        REAL NOT NULL DEFAULT 0,
   diferenca_cartao_pix      REAL NOT NULL DEFAULT 0,
 
