@@ -44,7 +44,7 @@ Diferença real = diferença ajustada pelas pendências do dia
 ### Fechamento de sábado (moedas)
 A mercearia trabalha de segunda a sábado (domingo é folga). Moedas não são contadas dia a dia — só no sábado, pra fechar a semana. Elas **não são retiradas do caixa**, então o que explica a diferença da semana é o *crescimento* do estoque de moedas desde o sábado anterior, não o total contado.
 
-Detalhes completos das fórmulas, casos de borda e exemplos numéricos: [`PROJETO.md`](./PROJETO.md).
+Detalhes completos das fórmulas, casos de borda e exemplos numéricos: [`docs/PROJETO.md`](./docs/PROJETO.md).
 
 ## Telas
 
@@ -59,7 +59,7 @@ Detalhes completos das fórmulas, casos de borda e exemplos numéricos: [`PROJET
 
 ## Impressão
 
-Ao fechar o dia, o sistema gera um relatório imprimível (impressora térmica Elgin i9) com Microvix, valores reais por maquininha, dinheiro, sangria, as duas conferências, pendências do dia e — aos sábados — o fechamento semanal de moedas. Layout completo em [`PROJETO.md`](./PROJETO.md#impressão).
+Ao fechar o dia, o sistema gera um relatório imprimível (impressora térmica Elgin i9) com Microvix, valores reais por maquininha, dinheiro, sangria, as duas conferências, pendências do dia e — aos sábados — o fechamento semanal de moedas. Layout completo em [`docs/PROJETO.md`](./docs/PROJETO.md#impressão).
 
 ## Stack
 
@@ -133,7 +133,7 @@ src/
 
 **Histórico é imutável por design.** Os totais, diferenças e sangria de um fechamento são salvos no banco na hora, não recalculados depois — inclusive o fundo fixo usado naquele dia é gravado como snapshot. Se a configuração mudar no futuro, fechamentos antigos continuam com os números originais de quando foram fechados.
 
-Regras de domínio completas, casos de borda e o schema SQL inteiro: **[`PROJETO.md`](./PROJETO.md)**.
+Regras de domínio completas, casos de borda e o schema SQL inteiro: **[`docs/PROJETO.md`](./docs/PROJETO.md)**.
 
 ## Sistema de design
 

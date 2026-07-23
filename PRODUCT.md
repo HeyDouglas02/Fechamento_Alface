@@ -30,7 +30,7 @@ Ferramenta interna de uso único (não é produto de mercado). Sua diferença é
 - Único erro humano tratado: classificação errada de forma de pagamento (não há tratamento de valor digitado errado, venda esquecida ou duplicada).
 - A prazo e iFood são só registrados, nunca entram em nenhuma conferência.
 - 5 telas: Login, Fechamento do dia (principal), Histórico, Pendências, Configurações.
-- Impressão térmica com layout de texto monoespaçado já especificado (ver PROJETO.md).
+- Impressão térmica com layout de texto monoespaçado já especificado (ver docs/PROJETO.md).
 
 ## Brand Commitments
 
@@ -38,7 +38,7 @@ Nome do negócio: "Alface & Melancia" (mercearia). Nenhuma identidade visual, lo
 
 ## Evidence on Hand
 
-Nenhum dado real, teste ou caso de uso gravado ainda além da especificação funcional em `PROJETO.md` (valores de exemplo ali são ilustrativos, não dados reais). Não inventar dados de clientes, valores ou nomes de maquininhas além dos exemplos já citados na spec ("Stone", "Voucher", "Entrega").
+Nenhum dado real, teste ou caso de uso gravado ainda além da especificação funcional em `docs/PROJETO.md` (valores de exemplo ali são ilustrativos, não dados reais). Não inventar dados de clientes, valores ou nomes de maquininhas além dos exemplos já citados na spec ("Stone", "Voucher", "Entrega").
 
 ## Product Principles
 

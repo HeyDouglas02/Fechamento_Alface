@@ -31,7 +31,7 @@ O projeto é **ESM em todo lugar** (`"type": "module"` no package.json): servido
 
 ## Arquitetura
 
-Sistema de fechamento de caixa de uma mercearia (PDV Microvix). O objetivo central é **cruzar o que o Microvix registrou com o que entrou de fato** (maquininhas, pix, dinheiro) e isolar onde falta/sobra dinheiro. A especificação completa do negócio está em **`PROJETO.md`** — ler antes de implementar qualquer regra financeira.
+Sistema de fechamento de caixa de uma mercearia (PDV Microvix). O objetivo central é **cruzar o que o Microvix registrou com o que entrou de fato** (maquininhas, pix, dinheiro) e isolar onde falta/sobra dinheiro. A especificação completa do negócio está em **`docs/PROJETO.md`** — ler antes de implementar qualquer regra financeira.
 
 ### Backend (`server/`)
 - `index.js` — servidor Express; injeta o banco em `app.locals.db` para as rotas usarem.
@@ -40,7 +40,7 @@ Sistema de fechamento de caixa de uma mercearia (PDV Microvix). O objetivo centr
 - `routes/` — `fechamentos`, `pendencias`, `usuarios`, `configuracoes` (a implementar; placeholders comentados em `index.js`).
 
 ### Frontend (`src/`)
-Atualmente ainda é o scaffold padrão do Vite (`App.jsx` é a tela de exemplo). A estrutura-alvo (5 telas: Login, Fechamento, Histórico, Pendências, Configurações) e os componentes estão descritos em `PROJETO.md`.
+Atualmente ainda é o scaffold padrão do Vite (`App.jsx` é a tela de exemplo). A estrutura-alvo (5 telas: Login, Fechamento, Histórico, Pendências, Configurações) e os componentes estão descritos em `docs/PROJETO.md`.
 
 ## Regras de domínio que moldam o código
 
@@ -62,4 +62,4 @@ Estas decisões não são óbvias pelo código e mudam como tudo é estruturado:
 
 ## Ordem de implementação
 
-`PROJETO.md` define a ordem sugerida (passos 1–11). Passo 1 (servidor + db.js + schema) está feito. Seguir a ordem ao continuar.
+`docs/PROJETO.md` define a ordem sugerida (passos 1–11). Passo 1 (servidor + db.js + schema) está feito. Seguir a ordem ao continuar.
