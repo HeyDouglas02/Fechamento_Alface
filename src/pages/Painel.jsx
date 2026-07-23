@@ -180,8 +180,8 @@ export default function Painel() {
       {/* Cartões de indicadores */}
       <div className="kpis">
         <Kpi titulo="Faturamento" valor={formatarBRL(resumo?.fatTotal || 0)}
-          rodape={`média ${formatarBRL(resumo?.mediaDiaria || 0)}/dia`}
-          badge={resumo?.variacao != null ? <Variacao v={resumo.variacao} /> : null} destaque />
+          rodape={`média ${formatarBRL(resumo?.mediaDiaria || 0)}/dia${resumo?.variacao != null ? ` · ${resumo.variacao >= 0 ? '+' : ''}${resumo.variacao.toFixed(1)}% vs período anterior` : ''}`}
+          principal />
         <Kpi titulo="Ticket médio"
           valor={resumo?.ticketMedio != null ? formatarBRL(resumo.ticketMedio) : '—'}
           rodape={resumo?.ticketMedio != null ? `${resumo.totalVendas} venda(s)` : 'Preencha o nº de vendas no fechamento'} />
@@ -208,8 +208,13 @@ export default function Painel() {
         <section className="cartao">
           <h2>Composição de pagamentos</h2>
           {compDados.length ? (
-            <div className="rosca-wrap">
-              <Donut dados={compDados} total={compTotal} />
+            <div className="composicao">
+              <div className="composicao__barra">
+                {compDados.map((d) => (
+                  <span key={d.label} title={`${d.label} — ${formatarBRL(d.valor)}`}
+                    style={{ width: `${(d.valor / compTotal) * 100}%`, background: d.cor }} />
+                ))}
+              </div>
               <ul className="legenda">
                 {compDados.map((d) => (
                   <li key={d.label}>
@@ -264,7 +269,7 @@ export default function Painel() {
                 </li>
               ))}
             </ul>
-          ) : <p className="painel__vazio">Nenhuma pendência em aberto. 🎉</p>}
+          ) : <p className="painel__vazio">Nenhuma pendência em aberto.</p>}
         </section>
       </div>
     </div>
@@ -273,19 +278,14 @@ export default function Painel() {
 
 /* ---------- Componentes visuais ---------- */
 
-function Kpi({ titulo, valor, rodape, badge, cor, destaque }) {
+function Kpi({ titulo, valor, rodape, cor, principal }) {
   return (
-    <div className={`kpi${destaque ? ' kpi--destaque' : ''}`}>
+    <div className={`kpi${principal ? ' kpi--principal' : ''}`}>
       <span className="kpi__titulo">{titulo}</span>
       <strong className={`kpi__valor${cor ? ` kpi__valor--${cor}` : ''}`}>{valor}</strong>
-      <span className="kpi__rodape">{badge}{rodape}</span>
+      <span className="kpi__rodape">{rodape}</span>
     </div>
   );
-}
-
-function Variacao({ v }) {
-  const cls = v >= 0 ? 'subiu' : 'caiu';
-  return <span className={`variacao ${cls}`}>{v >= 0 ? '▲' : '▼'} {Math.abs(v).toFixed(1)}%</span>;
 }
 
 function Barras({ dados }) {
@@ -326,35 +326,6 @@ function Divergentes({ dados }) {
           </div>
         );
       })}
-    </div>
-  );
-}
-
-function Donut({ dados, total }) {
-  const soma = total || dados.reduce((s, d) => s + d.valor, 0) || 1;
-  const r = 56;
-  const c = 2 * Math.PI * r;
-  let acc = 0;
-  return (
-    <div className="donut-wrap">
-      <svg viewBox="0 0 150 150" className="donut" role="img" aria-label="Composição de pagamentos">
-        <g transform="rotate(-90 75 75)">
-          {dados.map((d, i) => {
-            const frac = d.valor / soma;
-            const dash = frac * c;
-            const el = (
-              <circle key={i} cx="75" cy="75" r={r} fill="none" stroke={d.cor} strokeWidth="22"
-                strokeDasharray={`${dash} ${c - dash}`} strokeDashoffset={-acc * c} />
-            );
-            acc += frac;
-            return el;
-          })}
-        </g>
-      </svg>
-      <div className="donut__centro">
-        <span className="donut__centro-val">{compacto(soma)}</span>
-        <span className="donut__centro-lbl">total</span>
-      </div>
     </div>
   );
 }

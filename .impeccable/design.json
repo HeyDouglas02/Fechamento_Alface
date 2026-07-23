@@ -1,0 +1,146 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-22T00:00:00.000Z",
+  "title": "Design System: Alface & Melancia — Fechamento de Caixa",
+  "extensions": {
+    "colorMeta": {
+      "verde-melancia": { "role": "primary", "displayName": "Verde Melancia", "canonical": "#43a83a", "tonalRamp": ["#1c3b18", "#245023", "#2f7d32", "#3b9a35", "#43a83a", "#6cbd63", "#a3d89c", "#eaf6e7"] },
+      "verde-melancia-escuro": { "role": "primary", "displayName": "Verde Melancia Escuro", "canonical": "#2f7d32", "tonalRamp": ["#122912", "#1a3d1c", "#215024", "#2f7d32", "#3b9a3a", "#5eb455", "#96d18e", "#e2f3df"] },
+      "verde-melancia-bg": { "role": "primary", "displayName": "Verde Melancia Fundo", "canonical": "#eaf6e7", "tonalRamp": ["#12200f", "#234020", "#356032", "#5a8f52", "#8ec185", "#c3e2bd", "#eaf6e7", "#f7fbf6"] },
+      "lima-and": { "role": "accent", "displayName": "Lima do &", "canonical": "#9fc23a", "tonalRamp": ["#2c3812", "#425420", "#597032", "#7a9b3a", "#9fc23a", "#bcd876", "#d8ebac", "#f2f8e2"] },
+      "vermelho-polpa": { "role": "negative", "displayName": "Vermelho Polpa", "canonical": "#d8362b", "tonalRamp": ["#3a0f0c", "#5c1712", "#801f18", "#a82920", "#d8362b", "#e8695f", "#f2a49d", "#fdecea"] },
+      "ouro-estrela": { "role": "attention", "displayName": "Ouro Estrela", "canonical": "#c9a227", "tonalRamp": ["#332a09", "#4d3f0d", "#6b5613", "#96771b", "#c9a227", "#dcbe5e", "#ecd898", "#fdf6e3"] },
+      "vermelho-bg": { "role": "negative", "displayName": "Vermelho Fundo", "canonical": "#fdecea", "tonalRamp": ["#3a0f0c", "#5c1712", "#801f18", "#c9564a", "#e59a92", "#f2c1ba", "#fdecea", "#fef6f5"] },
+      "ambar-atencao": { "role": "attention", "displayName": "Âmbar Atenção", "canonical": "#b7791f", "tonalRamp": ["#2e1e08", "#472e0c", "#674211", "#8f5c18", "#b7791f", "#d09b4a", "#e5c187", "#fdf6e3"] },
+      "ambar-bg": { "role": "attention", "displayName": "Âmbar Fundo", "canonical": "#fdf6e3", "tonalRamp": ["#332a09", "#4d3f0d", "#8f5c18", "#c9a227", "#e5c187", "#f2e1b8", "#fdf6e3", "#fffcf5"] },
+      "azul-bg": { "role": "informative", "displayName": "Azul Informativo Fundo", "canonical": "#eaf2fd", "tonalRamp": ["#0d1f33", "#1a3958", "#265280", "#3f75ab", "#7ba6d6", "#b3d0ee", "#eaf2fd", "#f7fafe"] },
+      "azul-borda": { "role": "informative", "displayName": "Azul Borda", "canonical": "#cfe1fb", "tonalRamp": ["#0d1f33", "#1a3958", "#3f75ab", "#6996c6", "#9dbee0", "#cfe1fb", "#e6f0fc", "#f7fafe"] },
+      "texto": { "role": "neutral", "displayName": "Texto Principal", "canonical": "#1f2733", "tonalRamp": ["#0a0d11", "#151b23", "#1f2733", "#3a4657", "#5b6672", "#8a929c", "#c4c9cf", "#eef0f2"] },
+      "texto-suave": { "role": "neutral", "displayName": "Texto Suave", "canonical": "#5b6672", "tonalRamp": ["#151b23", "#242c37", "#3a4657", "#5b6672", "#767f8a", "#9aa1a9", "#c4c9cf", "#eef0f2"] },
+      "texto-fraco": { "role": "neutral", "displayName": "Texto Fraco", "canonical": "#8a929c", "tonalRamp": ["#3a4657", "#5b6672", "#767f8a", "#8a929c", "#a3aab1", "#c4c9cf", "#dde0e3", "#f3f5f6"] },
+      "borda": { "role": "neutral", "displayName": "Borda", "canonical": "#e4e8ed", "tonalRamp": ["#5b6672", "#8a929c", "#b7bcc2", "#d4dae1", "#e4e8ed", "#eef0f2", "#f5f6f8", "#fbfcfd"] },
+      "borda-forte": { "role": "neutral", "displayName": "Borda Forte", "canonical": "#d4dae1", "tonalRamp": ["#5b6672", "#767f8a", "#9aa1a9", "#b7bcc2", "#d4dae1", "#e4e8ed", "#eef0f2", "#f8fafc"] },
+      "bg": { "role": "neutral", "displayName": "Fundo da Página", "canonical": "#f3f5f8", "tonalRamp": ["#5b6672", "#8a929c", "#c4c9cf", "#dde0e3", "#eef0f2", "#f3f5f8", "#f8fafc", "#ffffff"] },
+      "superficie": { "role": "neutral", "displayName": "Superfície", "canonical": "#ffffff", "tonalRamp": ["#e4e8ed", "#eef0f2", "#f3f5f8", "#f8fafc", "#fbfcfd", "#fdfdfe", "#ffffff", "#ffffff"] },
+      "superficie-2": { "role": "neutral", "displayName": "Superfície 2", "canonical": "#f8fafc", "tonalRamp": ["#e4e8ed", "#eef0f2", "#f3f5f8", "#f6f8fa", "#f8fafc", "#fbfcfd", "#fdfdfe", "#ffffff"] }
+    },
+    "typographyMeta": {
+      "h1": { "displayName": "H1", "purpose": "Título de tela (ex: Fechamento do dia)." },
+      "h2": { "displayName": "H2", "purpose": "Título de seção/cartão." },
+      "h3": { "displayName": "H3", "purpose": "Subtítulo dentro de seção." },
+      "body": { "displayName": "Body", "purpose": "Texto corrido, valores em tabela." },
+      "label": { "displayName": "Label", "purpose": "Rótulo de campo de formulário." },
+      "numero": { "displayName": "Número (mono)", "purpose": "Valores monetários — sempre tabular-nums, alinhado à direita." },
+      "kpi-valor": { "displayName": "KPI Valor", "purpose": "Valor numérico dos cartões do Painel." },
+      "kpi-valor-principal": { "displayName": "KPI Valor Principal", "purpose": "Passo maior reservado ao KPI principal (faturamento do período) para liderar a hierarquia entre cartões." }
+    },
+    "shadows": [
+      { "name": "sombra-sm", "value": "0 1px 2px rgba(16, 24, 40, 0.06)", "purpose": "Sombra de repouso padrão para cartões, seções e tabelas." },
+      { "name": "sombra", "value": "0 2px 8px rgba(16, 24, 40, 0.08)", "purpose": "Elementos flutuantes pequenos (avatar, logo)." },
+      { "name": "sombra-lg", "value": "0 12px 32px rgba(16, 24, 40, 0.16)", "purpose": "Reservada para o cartão de login isolado." }
+    ],
+    "motion": [
+      { "name": "transicao-controle", "value": "background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.05s ease", "purpose": "Transição padrão de botões e inputs." },
+      { "name": "transicao-hover-linha", "value": "background-color 0.12s ease", "purpose": "Hover de linha de tabela (Histórico)." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "820px" },
+      { "name": "lg", "value": "900px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Ação principal da tela: salvar, fechar dia, confirmar.",
+      "html": "<button class=\"ds-btn-primary\">Fechar e imprimir</button>",
+      "css": ".ds-btn-primary { background: #43a83a; color: #ffffff; padding: 0.7rem 1.3rem; border: 1px solid #43a83a; border-radius: 7px; font-size: 0.95rem; font-weight: 600; box-shadow: 0 1px 2px rgba(16,24,40,0.06); transition: background-color 0.15s ease, transform 0.05s ease; } .ds-btn-primary:hover { background: #2f7d32; } .ds-btn-primary:active { transform: translateY(1px); } .ds-btn-primary:focus-visible { outline: 3px solid rgba(47,158,84,0.35); outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Ação secundária: salvar rascunho, editar, cancelar.",
+      "html": "<button class=\"ds-btn-secondary\">Salvar rascunho</button>",
+      "css": ".ds-btn-secondary { background: #ffffff; color: #1f2733; padding: 0.7rem 1.3rem; border: 1px solid #d4dae1; border-radius: 7px; font-size: 0.95rem; font-weight: 600; transition: background-color 0.15s ease; } .ds-btn-secondary:hover { background: #f8fafc; }"
+    },
+    {
+      "name": "Destructive Hover Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Botão de excluir/sair — neutro em repouso, vermelho só no hover.",
+      "html": "<button class=\"ds-btn-destructive\">Excluir</button>",
+      "css": ".ds-btn-destructive { background: #ffffff; color: #5b6672; padding: 0.3rem 0.7rem; border: 1px solid #d4dae1; border-radius: 7px; font-size: 0.82rem; font-weight: 500; transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease; } .ds-btn-destructive:hover { background: #fdecea; border-color: #d8362b; color: #d8362b; }"
+    },
+    {
+      "name": "Money Input",
+      "kind": "input",
+      "refersTo": "input-text",
+      "description": "Campo de valor em R$ — alinhado à direita, fonte tabular.",
+      "html": "<label class=\"ds-campo-valor\"><span class=\"ds-campo-valor__label\">Crédito</span><input class=\"ds-campo-valor__input\" type=\"text\" value=\"1.200,00\" /></label>",
+      "css": ".ds-campo-valor { display: flex; flex-direction: column; gap: 0.3rem; } .ds-campo-valor__label { font-size: 0.8rem; color: #5b6672; font-weight: 500; } .ds-campo-valor__input { padding: 0.5rem 0.7rem; border: 1px solid #d4dae1; border-radius: 7px; font-size: 1rem; text-align: right; font-variant-numeric: tabular-nums; background: #ffffff; font-family: 'Cascadia Code', Consolas, ui-monospace, monospace; transition: border-color 0.15s ease, box-shadow 0.15s ease; } .ds-campo-valor__input:hover { border-color: #8a929c; } .ds-campo-valor__input:focus-visible { outline: 3px solid rgba(47,158,84,0.25); outline-offset: 0; border-color: #43a83a; }"
+    },
+    {
+      "name": "Card / Section",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Cartão base usado para seções de formulário, conferências, KPIs.",
+      "html": "<div class=\"ds-card\"><h2 class=\"ds-card__titulo\">Microvix</h2><p>Conteúdo da seção.</p></div>",
+      "css": ".ds-card { background: #ffffff; border: 1px solid #e4e8ed; border-radius: 10px; padding: 1.1rem 1.25rem; box-shadow: 0 1px 2px rgba(16,24,40,0.06); } .ds-card__titulo { margin: 0 0 1rem; padding-bottom: 0.6rem; border-bottom: 1px solid #e4e8ed; font-size: 1.05rem; font-weight: 650; color: #1f2733; }"
+    },
+    {
+      "name": "Conferência (resultado)",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "Componente-assinatura: bloco de resultado de conferência com cor de estado (bate/falta/sobra).",
+      "html": "<div class=\"ds-conferencia\"><h3 class=\"ds-conferencia__titulo\">Conferência — Dinheiro</h3><div class=\"ds-conferencia__resultado ds-conferencia__resultado--neg\"><span>Diferença</span><strong>-R$ 40,00</strong></div></div>",
+      "css": ".ds-conferencia { background: #ffffff; border: 1px solid #e4e8ed; border-radius: 10px; padding: 1.1rem 1.25rem; box-shadow: 0 1px 2px rgba(16,24,40,0.06); } .ds-conferencia__titulo { margin: 0 0 0.75rem; font-size: 0.95rem; font-weight: 650; color: #1f2733; } .ds-conferencia__resultado { display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0.75rem; border-radius: 7px; font-size: 1.05rem; font-weight: 600; } .ds-conferencia__resultado strong { font-variant-numeric: tabular-nums; font-size: 1.15rem; } .ds-conferencia__resultado--neg { background: #fdecea; } .ds-conferencia__resultado--neg strong { color: #d8362b; } .ds-conferencia__resultado--pos { background: #fdf6e3; } .ds-conferencia__resultado--pos strong { color: #b7791f; } .ds-conferencia__resultado--zero { background: #eaf6e7; } .ds-conferencia__resultado--zero strong { color: #2f7d32; }"
+    },
+    {
+      "name": "Status Tag",
+      "kind": "chip",
+      "refersTo": "card",
+      "description": "Etiqueta de status no Histórico (fechado / com diferença).",
+      "html": "<span class=\"ds-tag ds-tag--verde\">Fechado</span>",
+      "css": ".ds-tag { display: inline-block; padding: 0.15rem 0.6rem; border-radius: 999px; font-size: 0.76rem; font-weight: 600; } .ds-tag--verde { background: #eaf6e7; color: #2f7d32; } .ds-tag--vermelho { background: #fdecea; color: #d8362b; } .ds-tag--cinza { background: #eef1f4; color: #5b6672; }"
+    },
+    {
+      "name": "Top Navigation",
+      "kind": "nav",
+      "refersTo": "card",
+      "description": "Barra superior fixa com abas e faixa de gradiente de marca.",
+      "html": "<nav class=\"ds-topo\"><div class=\"ds-topo__marca\">Alface &amp; Melancia</div><div class=\"ds-topo__abas\"><button class=\"ativo\">Fechamento</button><button>Histórico</button><button>Pendências</button></div></nav>",
+      "css": ".ds-topo { display: flex; align-items: center; gap: 1.5rem; padding: 0 1.5rem; height: 64px; background: #ffffff; border-bottom: 3px solid transparent; border-image: linear-gradient(90deg, #d8362b, #c9a227 45%, #43a83a) 1; box-shadow: 0 1px 2px rgba(16,24,40,0.06); } .ds-topo__marca { font-weight: 700; color: #1f2733; white-space: nowrap; } .ds-topo__abas { display: flex; gap: 0.25rem; height: 100%; } .ds-topo__abas button { height: 100%; padding: 0 1rem; border: none; background: transparent; border-bottom: 3px solid transparent; color: #5b6672; font-size: 0.95rem; font-weight: 500; } .ds-topo__abas button:hover { color: #1f2733; background: #f8fafc; } .ds-topo__abas button.ativo { color: #2f7d32; border-bottom-color: #43a83a; font-weight: 650; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "O Balcão Confiável",
+    "overview": "Ferramenta de PDV usada uma vez por dia, no fim do expediente, por quem já está cansado depois de um dia de trabalho na mercearia. O design existe pra tirar atrito do único momento que importa: ver se o dinheiro bate. Nada de personalidade visual gritante — a marca aparece com moderação (faixa de logo no topo, verde nos botões de ação, dourado nos alertas), o resto é neutro e funcional como uma planilha bem organizada.\n\nA cor nunca é decorativa aqui: verde é ação positiva/confirmação, vermelho é falta, dourado é sobra/atenção, azul é informação neutra. Tudo em cartões brancos flutuando sobre um fundo cinza-claro, com números sempre alinhados à direita em fonte tabular pra leitura rápida de coluna.",
+    "keyCharacteristics": [
+      "Tema claro fixo, sem modo escuro (uso diário em ambiente de balcão iluminado).",
+      "Cartões brancos com borda sutil + sombra mínima sobre fundo cinza-claro.",
+      "Números financeiros sempre em tabular-nums, alinhados à direita.",
+      "Cor como sinal de estado (positivo/negativo/neutro), nunca decoração.",
+      "Densidade média-alta: muitos campos por tela, mas agrupados em seções claras."
+    ],
+    "rules": [
+      { "name": "The State-Only Color Rule", "body": "Verde, dourado e vermelho só aparecem para comunicar um estado real (positivo/atenção/negativo) ou para a ação principal de uma tela. Nunca usar essas cores para decoração ou hierarquia visual sem significado de estado por trás.", "section": "colors" },
+      { "name": "The Tabular Numbers Rule", "body": "Todo valor monetário usa font-variant-numeric: tabular-nums e alinhamento à direita — colunas de número precisam alinhar visualmente para conferência rápida.", "section": "typography" },
+      { "name": "The Flat-Card Rule", "body": "Cartões usam borda de 1px (--borda) + sombra mínima, nunca sombra + borda + gradiente juntos. Profundidade extra é exceção rara (login), não regra.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do usar verde só para ação principal e estado positivo/zerado — é a única cor \"de marca\" que aparece em botão sólido.",
+      "Do manter números monetários em tabular-nums, alinhados à direita, em qualquer tabela ou lista nova.",
+      "Do usar sombra mínima (--sombra-sm) como padrão de cartão; reservar --sombra-lg só para elementos isolados tipo o cartão de login.",
+      "Do seguir a convenção de sinal nas conferências: vermelho = faltou, dourado/âmbar = sobrou, verde = bateu."
+    ],
+    "donts": [
+      "Don't introduzir sombras fortes ou gradientes decorativos fora do que já existe (faixa do topo, fundo do login, KPI em destaque).",
+      "Don't usar vermelho sólido em repouso para botões — vermelho é só hover de ação destrutiva ou estado de erro/falta.",
+      "Don't comparar categoria por categoria na UI de conferência de cartão/pix — a interface reflete a regra de negócio de comparar só o total geral.",
+      "Don't adicionar modo escuro ou tema alternativo sem pedido explícito — o sistema assume tema claro fixo."
+    ]
+  }
+}

@@ -87,9 +87,9 @@
 /* KPIs */
 .kpis {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: 1.6fr 1fr 1fr 1fr;
   gap: 1rem;
-  margin-bottom: 1.25rem;
+  margin-bottom: 1.5rem;
 }
 
 @media (max-width: 820px) {
@@ -104,12 +104,7 @@
   box-shadow: var(--sombra-sm);
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-}
-
-.kpi--destaque {
-  background: linear-gradient(135deg, #f0faf2, var(--superficie) 60%);
-  border-color: #cdeed7;
+  gap: 0.4rem;
 }
 
 .kpi__titulo {
@@ -118,6 +113,7 @@
   text-transform: uppercase;
   letter-spacing: 0.03em;
   font-weight: 600;
+  margin-bottom: 0.1rem;
 }
 
 .kpi__valor {
@@ -126,6 +122,10 @@
   color: var(--texto);
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
+}
+
+.kpi--principal .kpi__valor {
+  font-size: 2.1rem;
 }
 
 .kpi__valor--neg { color: var(--vermelho); }
@@ -140,16 +140,6 @@
   gap: 0.4rem;
   flex-wrap: wrap;
 }
-
-.variacao {
-  font-weight: 700;
-  font-size: 0.78rem;
-  padding: 0.05rem 0.4rem;
-  border-radius: 999px;
-}
-
-.variacao.subiu { color: var(--verde-escuro); background: var(--verde-bg); }
-.variacao.caiu { color: var(--vermelho); background: var(--vermelho-bg); }
 
 /* Cartões de gráfico */
 .cartao {
@@ -211,12 +201,13 @@
   left: 15%;
   right: 15%;
   min-height: 2px;
-  background: linear-gradient(180deg, var(--verde), var(--verde-escuro));
-  border-radius: 4px 4px 0 0;
-  transition: opacity 0.15s ease;
+  background: var(--verde);
+  border-radius: var(--raio-sm) var(--raio-sm) 0 0;
+  transition: background-color 0.15s ease;
 }
 
-.barras__col:hover .barras__barra { opacity: 0.78; }
+.barras__col:hover .barras__barra { background: var(--verde-escuro); }
+.barras__col:hover .barras__valor { color: var(--texto); }
 
 .barras__lbl {
   text-align: center;
@@ -296,47 +287,23 @@
 .ponto.pos { background: var(--verde); }
 .ponto.neg { background: var(--vermelho); }
 
-/* Rosca (donut) */
-.rosca-wrap {
-  display: flex;
-  align-items: center;
-  gap: 1.25rem;
-  flex-wrap: wrap;
-}
-
-.donut-wrap {
-  position: relative;
-  width: 140px;
-  height: 140px;
-  flex-shrink: 0;
-}
-
-.donut {
-  width: 140px;
-  height: 140px;
-}
-
-.donut__centro {
-  position: absolute;
-  inset: 0;
+/* Composição de pagamentos (barra empilhada) */
+.composicao {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
+  gap: 1rem;
 }
 
-.donut__centro-val {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--texto);
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
+.composicao__barra {
+  display: flex;
+  height: 10px;
+  border-radius: var(--raio-sm);
+  overflow: hidden;
+  background: var(--superficie-2);
 }
 
-.donut__centro-lbl {
-  font-size: 0.7rem;
-  color: var(--texto-fraco);
+.composicao__barra span {
+  height: 100%;
 }
 
 .legenda {
