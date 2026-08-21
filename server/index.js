@@ -10,13 +10,16 @@ import { fileURLToPath } from 'node:url';
 import { exec } from 'node:child_process';
 import express from 'express';
 import cors from 'cors';
+import cron from 'node-cron';
 import { initDb } from './db.js';
+import { uploadBackup } from './backup.js';
 import fechamentosRouter from './routes/fechamentos.js';
 import configuracoesRouter from './routes/configuracoes.js';
 import pendenciasRouter from './routes/pendencias.js';
 import usuariosRouter from './routes/usuarios.js';
 import aPrazoRouter from './routes/aPrazo.js';
 import despesasRouter from './routes/despesas.js';
+import sistemaRouter from './routes/sistema.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3001;
@@ -34,6 +37,32 @@ async function main() {
   // Disponibiliza o banco para as rotas (req.app.locals.db).
   app.locals.db = db;
 
+  // Agendador de backup automático (sexta 18h)
+  cron.schedule('0 18 * * 5', async () => {
+    console.log('[Cron] Executando backup automático semanal...');
+    await uploadBackup(db.path);
+  });
+
+  // Catch-up: se o PC ficou desligado na sexta, roda backup no boot
+  const logPath = path.join(__dirname, 'data', 'backup-log.json');
+  if (fs.existsSync(logPath)) {
+    try {
+      const log = JSON.parse(fs.readFileSync(logPath, 'utf-8'));
+      const ultimoBackup = log.ultimoBackup;
+      if (ultimoBackup) {
+        const hoje = new Date();
+        const hojeStr = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
+        const diffDias = Math.floor((new Date(hojeStr) - new Date(ultimoBackup)) / (1000 * 60 * 60 * 24));
+        if (diffDias > 7) {
+          console.log(`[Boot] Último backup foi há ${diffDias} dias — disparando backup de catch-up...`);
+          await uploadBackup(db.path);
+        }
+      }
+    } catch (err) {
+      console.warn('[Boot] Erro ao checar log de backup:', err.message);
+    }
+  }
+
   // Health check — confirma que o servidor e o banco estão de pé.
   app.get('/api/health', (req, res) => {
     res.json({ ok: true, db: path.basename(db.path) });
@@ -46,6 +75,7 @@ async function main() {
   app.use('/api/usuarios', usuariosRouter);
   app.use('/api/a-prazo', aPrazoRouter);
   app.use('/api/despesas', despesasRouter);
+  app.use('/api/sistema', sistemaRouter);
 
   // Em produção local, serve o frontend já buildado (pasta dist/) na mesma
   // porta da API — assim o operador acessa tudo por um único endereço. Em
