@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS configuracoes (
   id                     INTEGER PRIMARY KEY AUTOINCREMENT,
+  -- nome_maquina_1..4: coluna morta, não lida/gravada mais (rótulo virou fixo "Máquina N").
   nome_maquina_1         TEXT    NOT NULL DEFAULT 'Maquina 1',
   nome_maquina_2         TEXT    NOT NULL DEFAULT 'Maquina 2',
   nome_maquina_3         TEXT    NOT NULL DEFAULT 'Maquina 3',
@@ -70,6 +71,7 @@ CREATE TABLE IF NOT EXISTS fechamentos (
   desejado_caixa_2   REAL NOT NULL DEFAULT 0,
   sangrias           TEXT,                      -- JSON: [{caixa,descricao,valor}]
   ajustes_cartao     TEXT,                      -- JSON: [{tipo,descricao,valor}] soma/subtrai
+  ajustes_dinheiro   TEXT,                      -- JSON: [{tipo,descricao,valor}] soma/subtrai
 
   -- Sábado (moedas, contadas só no fechamento semanal)
   moedas_caixa_1 REAL NOT NULL DEFAULT 0,
@@ -79,6 +81,7 @@ CREATE TABLE IF NOT EXISTS fechamentos (
   total_maquininhas         REAL NOT NULL DEFAULT 0,
   total_maquininhas_microvix REAL NOT NULL DEFAULT 0,
   dinheiro_esperado         REAL NOT NULL DEFAULT 0,
+  dinheiro_contado_ajustado REAL NOT NULL DEFAULT 0,   -- contado + ajustes_dinheiro
   sangria_caixa_1           REAL NOT NULL DEFAULT 0,   -- soma das sangrias do caixa
   sangria_caixa_2           REAL NOT NULL DEFAULT 0,
   retirar_caixa_1           REAL NOT NULL DEFAULT 0,   -- fechamento − desejado
@@ -109,10 +112,62 @@ CREATE TABLE IF NOT EXISTS pendencias (
 
   data_recebimento          TEXT,
   fechamento_recebimento_id INTEGER REFERENCES fechamentos(id),
+  forma_recebimento         TEXT,     -- dinheiro / cartao_pix (só no recebimento)
 
   status     TEXT NOT NULL DEFAULT 'aberta',  -- aberta / recebida
   usuario_id INTEGER REFERENCES usuarios(id),
   criado_em  TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+);
+
+-- ---------------------------------------------------------------------------
+-- a_prazo_recebimentos: cliente com conta (fiado) formal, já lançado em
+-- microvix_a_prazo no dia da venda (fora de qualquer conferência). Aqui só se
+-- registra o RECEBIMENTO — quando o cliente quita depois, em dinheiro ou no
+-- cartão/pix, sem bater com nada do Microvix daquele dia. Sem rastreio de
+-- saldo por cliente, só log de recebimentos avulsos.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS a_prazo_recebimentos (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  data              TEXT NOT NULL,   -- AAAA-MM-DD, dia do recebimento
+  valor             REAL NOT NULL DEFAULT 0,
+  forma_recebimento TEXT NOT NULL,   -- dinheiro / cartao_pix
+  descricao         TEXT,            -- opcional, ex.: nome do cliente
+  usuario_id        INTEGER REFERENCES usuarios(id),
+  criado_em         TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+);
+
+-- ---------------------------------------------------------------------------
+-- categorias_despesa: tipos de despesa (aluguel, salário, fornecedores...).
+-- Cadastro prévio para evitar categoria duplicada/digitada diferente.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS categorias_despesa (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  nome          TEXT NOT NULL UNIQUE,
+  eh_fornecedor INTEGER NOT NULL DEFAULT 0   -- 1 = categoria pede fornecedor específico
+);
+
+-- ---------------------------------------------------------------------------
+-- fornecedores: cadastro dos fornecedores, pra ranking "mais pagos" no DRE
+-- sem depender de texto livre digitado diferente a cada lançamento.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS fornecedores (
+  id        INTEGER PRIMARY KEY AUTOINCREMENT,
+  nome      TEXT NOT NULL UNIQUE,
+  criado_em TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+);
+
+-- ---------------------------------------------------------------------------
+-- despesas: lançamento de despesa pontual (só para compor o DRE — sem
+-- vencimento, sem recorrência, sem lembrete).
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS despesas (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  data          TEXT NOT NULL,   -- AAAA-MM-DD
+  categoria_id  INTEGER NOT NULL REFERENCES categorias_despesa(id),
+  fornecedor_id INTEGER REFERENCES fornecedores(id),   -- só quando a categoria pede fornecedor
+  descricao     TEXT,
+  valor         REAL NOT NULL DEFAULT 0,
+  criado_em     TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
 );
 
 -- ---------------------------------------------------------------------------

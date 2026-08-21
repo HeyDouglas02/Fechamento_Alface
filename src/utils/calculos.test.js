@@ -8,7 +8,6 @@ import assert from 'node:assert/strict';
 import {
   conferenciaDinheiro,
   conferenciaCartaoPix,
-  acumuladoSemanal,
   totalMaquininhas,
 } from './calculos.js';
 
@@ -149,46 +148,19 @@ teste('sobra grande => sinal + e não é provável moeda', () => {
   assert.equal(r.provavelMoeda, false);       // |100| não é < 50
 });
 
-console.log('Acumulado semanal de moedas (sábado):');
-
-teste('falta acumulada explicada pelas moedas => saldo pequeno', () => {
-  const r = acumuladoSemanal({
-    diferencasDinheiro: [-20, -15, -18, -10, -10], // soma −73 (seg a sex)
-    moedasCaixa1: 35,
-    moedasCaixa2: 28,   // total moedas 63
+teste('ajuste de dinheiro subtrai do contado (recebimento a prazo em espécie)', () => {
+  const r = conferenciaDinheiro({
+    aberturaCaixa1: 150, aberturaCaixa2: 150,   // abertura 300
+    microvixDinheiro: 500,
+    fechamentoCaixa1: 400, fechamentoCaixa2: 460, // contado 860 (100 é de a prazo recebido)
+    ajustesDinheiro: -100,                        // ajuste: recebimento a prazo -> subtrai
     limiteDiferencaMoeda: 50,
   });
-  assert.equal(r.acumulado, -73);
-  assert.equal(r.totalMoedas, 63);
-  assert.equal(r.saldoNaoExplicado, -10);     // −73 + 63
-  assert.equal(r.dentroLimite, true);         // |−10| < 50 => era moeda
-});
-
-teste('furo real: moedas não explicam a falta => saldo grande', () => {
-  const r = acumuladoSemanal({
-    diferencasDinheiro: [-50, -40, -30],       // soma −120
-    moedasCaixa1: 10,
-    moedasCaixa2: 10,   // total 20
-    limiteDiferencaMoeda: 50,
-  });
-  assert.equal(r.saldoNaoExplicado, -100);    // −120 + 20 (sem sábado anterior)
-  assert.equal(r.dentroLimite, false);        // furo a investigar
-});
-
-teste('moedas NÃO retiradas: usa o crescimento desde o sábado anterior', () => {
-  // Semana 2: falta −70. O caixa tem 133 em moedas (63 da semana passada + 70
-  // novas). O sábado anterior fechou com 63. O crescimento (70) explica a falta.
-  const r = acumuladoSemanal({
-    diferencasDinheiro: [-20, -15, -20, -10, -5], // soma −70
-    moedasCaixa1: 70,
-    moedasCaixa2: 63,   // total no caixa = 133
-    moedasSemanaAnterior: 63,
-    limiteDiferencaMoeda: 50,
-  });
-  assert.equal(r.totalMoedas, 133);           // total no caixa
-  assert.equal(r.moedasDaSemana, 70);         // 133 − 63
-  assert.equal(r.saldoNaoExplicado, 0);       // −70 + 70 => explicado
-  assert.equal(r.dentroLimite, true);
+  assert.equal(r.dinheiroEsperado, 800);        // 300 abertura + 500 Microvix
+  assert.equal(r.dinheiroContado, 860);
+  assert.equal(r.dinheiroContadoAjustado, 760); // 860 − 100
+  assert.equal(r.diferencaDinheiro, -40);       // 760 − 800 => sinal −
+  assert.equal(r.provavelMoeda, true);          // |−40| < 50
 });
 
 console.log(`\n${passou} testes passaram.`);

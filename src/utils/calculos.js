@@ -30,11 +30,6 @@ function arredondar(v) {
   return Math.round((n(v) + Number.EPSILON) * 100) / 100;
 }
 
-// Soma uma lista de valores numéricos.
-function somar(lista) {
-  return (lista || []).reduce((acc, v) => acc + n(v), 0);
-}
-
 // Soma o campo `valor` de uma lista de pendências, opcionalmente filtrando por
 // status ('aberta' | 'recebida'). Útil para o servidor montar os totais.
 function somaPendencias(pendencias, status) {
@@ -73,6 +68,13 @@ function totalMaquininhas(d = {}) {
 //
 // Além disso, por caixa, quanto retirar no fim para sobrar o desejado:
 //   retirar = fechamento − desejado    (+ retira o excedente / − precisa repor)
+//
+// AJUSTE de dinheiro (lista com sinal, igual ao ajuste de cartão/pix): eventos
+// de uma vez só que somam ou subtraem do contado — ex.: recebimento de a prazo
+// ou pendência em espécie (dinheiro que entrou no caixa mas não é venda de
+// hoje, precisa ser subtraído para não virar sobra falsa).
+//   contado_ajustado = contado + ajustesDinheiro(com sinal)
+//   diferenca        = contado_ajustado − esperado
 function conferenciaDinheiro(d = {}) {
   const abertura1 = n(d.aberturaCaixa1);
   const abertura2 = n(d.aberturaCaixa2);
@@ -93,7 +95,10 @@ function conferenciaDinheiro(d = {}) {
   const dinheiroEsperado = arredondar(
     totalAbertura + totalSuprimento - totalSangria + n(d.microvixDinheiro)
   );
-  const diferencaDinheiro = arredondar(dinheiroContado - dinheiroEsperado);
+
+  const ajustesDinheiro = arredondar(n(d.ajustesDinheiro)); // soma (+) ou subtrai (−)
+  const dinheiroContadoAjustado = arredondar(dinheiroContado + ajustesDinheiro);
+  const diferencaDinheiro = arredondar(dinheiroContadoAjustado - dinheiroEsperado);
 
   // Quanto retirar de cada caixa para sobrar o desejado no próximo dia.
   const retirarCaixa1 = arredondar(fechamento1 - desejado1);
@@ -111,6 +116,8 @@ function conferenciaDinheiro(d = {}) {
     totalSangria,
     dinheiroEsperado,
     dinheiroContado,
+    ajustesDinheiro,
+    dinheiroContadoAjustado,
     diferencaDinheiro,
     retirarCaixa1,
     retirarCaixa2,
@@ -170,42 +177,6 @@ function conferenciaCartaoPix(d = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// Acumulado semanal de MOEDAS (fechamento de sábado)
-// ---------------------------------------------------------------------------
-// Durante seg–sáb a diferença de dinheiro (com sinal) é acumulada. No sábado
-// contam-se as moedas dos 2 caixas para explicar a falta da semana.
-//
-// As moedas NÃO são retiradas do caixa: o estoque de moedas cresce semana após
-// semana. Por isso o operador conta o TOTAL de moedas no caixa, e o que explica
-// a falta DESTA semana é o CRESCIMENTO do estoque desde o sábado anterior:
-//   acumulado            = soma das diferenças de dinheiro da semana (com sinal)
-//   total_moedas         = moedas caixa 1 + caixa 2 (total no caixa agora)
-//   moedas_da_semana     = total_moedas − total_moedas_sábado_anterior
-//   saldo_nao_explicado  = acumulado + moedas_da_semana
-// Como faltas entram negativas no acumulado, o crescimento das moedas (positivo)
-// reduz a falta. Saldo perto de zero = explicado por moeda; longe = furo.
-// (No primeiro sábado, total_moedas_sábado_anterior = 0.)
-function acumuladoSemanal(d = {}) {
-  const acumulado = arredondar(somar(d.diferencasDinheiro));
-  const totalMoedas = arredondar(n(d.moedasCaixa1) + n(d.moedasCaixa2));
-  const moedasSemanaAnterior = arredondar(n(d.moedasSemanaAnterior));
-  const moedasDaSemana = arredondar(totalMoedas - moedasSemanaAnterior);
-  const saldoNaoExplicado = arredondar(acumulado + moedasDaSemana);
-
-  const limite = n(d.limiteDiferencaMoeda);
-  const dentroLimite = Math.abs(saldoNaoExplicado) < limite;
-
-  return {
-    acumulado,
-    totalMoedas,
-    moedasSemanaAnterior,
-    moedasDaSemana,
-    saldoNaoExplicado,
-    dentroLimite,
-  };
-}
-
-// ---------------------------------------------------------------------------
 // Agregador: calcula TODOS os valores derivados de um fechamento de uma vez.
 // O servidor usa isto para gravar os campos calculados (histórico imutável).
 // ---------------------------------------------------------------------------
@@ -218,11 +189,9 @@ function calcularFechamento(d = {}) {
 export {
   n,
   arredondar,
-  somar,
   somaPendencias,
   totalMaquininhas,
   conferenciaDinheiro,
   conferenciaCartaoPix,
-  acumuladoSemanal,
   calcularFechamento,
 };
