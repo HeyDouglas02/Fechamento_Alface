@@ -14,6 +14,14 @@ export default function Configuracoes() {
   const [salvando, setSalvando] = useState(false);
   const [mensagem, setMensagem] = useState('');
 
+  // Sistema (atualização + backup).
+  const [versao, setVersao] = useState(null);
+  const [carregandoVersao, setCarregandoVersao] = useState(true);
+  const [atualizando, setAtualizando] = useState(false);
+  const [logAtualizacao, setLogAtualizacao] = useState([]);
+  const [statusBackup, setStatusBackup] = useState(null);
+  const [carregandoBackup, setCarregandoBackup] = useState(true);
+
   // Usuários (operadores).
   const [usuarios, setUsuarios] = useState([]);
   const [novoUsuario, setNovoUsuario] = useState({ nome: '', senha: '' });
@@ -35,7 +43,100 @@ export default function Configuracoes() {
       .catch(() => setMensagem('Não foi possível carregar as configurações.'));
     carregarUsuarios();
     carregarCategoriasFornecedores();
+    carregarVersao();
+    carregarStatusBackup();
   }, []);
+
+  function carregarVersao() {
+    setCarregandoVersao(true);
+    fetch('/api/sistema/versao')
+      .then((r) => r.json())
+      .then(setVersao)
+      .catch(() => setVersao(null))
+      .finally(() => setCarregandoVersao(false));
+  }
+
+  function carregarStatusBackup() {
+    setCarregandoBackup(true);
+    fetch('/api/sistema/google/status')
+      .then((r) => r.json())
+      .then(setStatusBackup)
+      .catch(() => setStatusBackup(null))
+      .finally(() => setCarregandoBackup(false));
+  }
+
+  async function atualizarSistema() {
+    if (!window.confirm('Isso vai baixar a versão mais recente e reiniciar o sistema. Continuar?')) return;
+    setAtualizando(true);
+    setLogAtualizacao([]);
+
+    try {
+      const res = await fetch('/api/sistema/atualizar', { method: 'POST' });
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let sucesso = false;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const texto = decoder.decode(value, { stream: true });
+        const linhas = texto.split('\n').filter(Boolean);
+        for (const linha of linhas) {
+          if (linha === 'SUCCESS') {
+            sucesso = true;
+            continue;
+          }
+          setLogAtualizacao((log) => [...log, linha]);
+        }
+      }
+
+      if (sucesso) {
+        aguardarReinicio();
+      } else {
+        setAtualizando(false);
+      }
+    } catch {
+      // Conexão caiu — provavelmente o servidor já reiniciou.
+      aguardarReinicio();
+    }
+  }
+
+  function aguardarReinicio() {
+    setLogAtualizacao((log) => [...log, 'Aguardando servidor voltar…']);
+    const intervalo = setInterval(async () => {
+      try {
+        const res = await fetch('/api/health');
+        if (res.ok) {
+          clearInterval(intervalo);
+          window.location.reload();
+        }
+      } catch {
+        // Servidor ainda reiniciando — tenta de novo.
+      }
+    }, 1000);
+  }
+
+  async function conectarGoogleDrive() {
+    try {
+      const res = await fetch('/api/sistema/google/auth-url');
+      const { authUrl } = await res.json();
+      window.open(authUrl, '_blank');
+    } catch {
+      setStatusBackup((s) => ({ ...s, erro: 'Não foi possível gerar o link de conexão.' }));
+    }
+  }
+
+  async function fazerBackupAgora() {
+    setCarregandoBackup(true);
+    try {
+      const res = await fetch('/api/sistema/google/backup-agora', { method: 'POST' });
+      if (!res.ok) throw new Error((await res.json()).erro || 'Erro ao fazer backup.');
+      carregarStatusBackup();
+    } catch (err) {
+      setCarregandoBackup(false);
+      alert(err.message);
+    }
+  }
 
   function carregarUsuarios() {
     fetch('/api/usuarios')
@@ -216,6 +317,57 @@ export default function Configuracoes() {
       <h1>Configurações</h1>
 
       {mensagem && <p className="configuracoes__mensagem">{mensagem}</p>}
+
+      <section className="secao">
+        <h2>Sistema</h2>
+
+        <div className="config-sistema-linha">
+          <div>
+            <h3 className="config-subtitulo">Atualização</h3>
+            {carregandoVersao ? (
+              <p className="config-aviso">Verificando versão…</p>
+            ) : versao ? (
+              <p className="config-aviso">
+                Versão atual: <strong>{versao.commit}</strong> ({versao.data})
+                {versao.temAtualizacao && <span className="config-badge">Atualização disponível</span>}
+              </p>
+            ) : (
+              <p className="config-aviso">Não foi possível verificar a versão.</p>
+            )}
+            <button type="button" onClick={atualizarSistema} disabled={atualizando}>
+              {atualizando ? 'Atualizando…' : 'Atualizar agora'}
+            </button>
+
+            {logAtualizacao.length > 0 && (
+              <pre className="config-log">{logAtualizacao.join('\n')}</pre>
+            )}
+          </div>
+
+          <div>
+            <h3 className="config-subtitulo">Backup (Google Drive)</h3>
+            {carregandoBackup ? (
+              <p className="config-aviso">Verificando status…</p>
+            ) : statusBackup?.conectado ? (
+              <p className="config-aviso">
+                Conectado. Último backup:{' '}
+                <strong>{statusBackup.ultimoBackup || 'ainda não houve'}</strong>
+              </p>
+            ) : (
+              <p className="config-aviso">Google Drive não conectado.</p>
+            )}
+
+            {statusBackup?.conectado ? (
+              <button type="button" onClick={fazerBackupAgora} disabled={carregandoBackup}>
+                Fazer backup agora
+              </button>
+            ) : (
+              <button type="button" onClick={conectarGoogleDrive}>
+                Conectar Google Drive
+              </button>
+            )}
+          </div>
+        </div>
+      </section>
 
       <section className="secao">
         <h2>Categorias e fornecedores de despesa</h2>
