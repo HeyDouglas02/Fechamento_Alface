@@ -15,6 +15,8 @@ import fechamentosRouter from './routes/fechamentos.js';
 import configuracoesRouter from './routes/configuracoes.js';
 import pendenciasRouter from './routes/pendencias.js';
 import usuariosRouter from './routes/usuarios.js';
+import aPrazoRouter from './routes/aPrazo.js';
+import despesasRouter from './routes/despesas.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3001;
@@ -42,6 +44,8 @@ async function main() {
   app.use('/api/configuracoes', configuracoesRouter);
   app.use('/api/pendencias', pendenciasRouter);
   app.use('/api/usuarios', usuariosRouter);
+  app.use('/api/a-prazo', aPrazoRouter);
+  app.use('/api/despesas', despesasRouter);
 
   // Em produção local, serve o frontend já buildado (pasta dist/) na mesma
   // porta da API — assim o operador acessa tudo por um único endereço. Em

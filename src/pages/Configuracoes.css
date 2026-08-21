@@ -73,13 +73,25 @@
 .usuarios-lista li {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 0.5rem;
   padding: 0.55rem 0.7rem;
   border: 1px solid var(--borda);
   border-radius: var(--raio-sm);
   margin-bottom: 0.4rem;
   background: var(--superficie-2);
   font-weight: 500;
+}
+
+.usuarios-lista li span { flex: 1; }
+
+.usuarios-lista li input {
+  flex: 1;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--borda-forte);
+  border-radius: var(--raio-sm);
+  background: var(--superficie);
+  font-size: 0.88rem;
+  font-weight: 400;
 }
 
 .usuarios-lista button {
@@ -120,4 +132,28 @@
 
 @media (max-width: 560px) {
   .usuario-form { grid-template-columns: 1fr 1fr; }
+}
+
+/* Categorias e fornecedores de despesa — empilhado (a página é estreita, 680px) */
+.config-colunas {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.config-subtitulo {
+  margin: 0 0 0.6rem;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--texto-fraco);
+}
+
+.config-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--texto-suave);
+  white-space: nowrap;
 }

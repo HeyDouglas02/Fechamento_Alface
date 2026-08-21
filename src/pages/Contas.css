@@ -1,0 +1,324 @@
+.contas {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.contas .secao {
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  padding: 1.1rem 1.25rem;
+  margin-bottom: 1rem;
+  box-shadow: var(--sombra-sm);
+}
+
+.contas .secao h2 {
+  margin: 0 0 1rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--borda);
+}
+
+.contas__mensagem {
+  background: var(--verde-bg);
+  border: 1px solid #bce6cd;
+  border-radius: var(--raio-sm);
+  padding: 0.65rem 0.9rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  color: var(--verde-escuro);
+}
+
+.contas__form {
+  display: flex;
+  flex-direction: column;
+  max-width: 420px;
+}
+
+.config-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-bottom: 0.9rem;
+}
+
+.config-campo span {
+  font-size: 0.82rem;
+  color: var(--texto-suave);
+  font-weight: 500;
+}
+
+.config-campo input,
+.config-campo select {
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--borda-forte);
+  border-radius: var(--raio-sm);
+  background: var(--superficie);
+  font-size: 0.95rem;
+}
+
+.config-aviso {
+  font-size: 0.82rem;
+  color: var(--texto-fraco);
+  margin: 0.5rem 0 0;
+}
+
+.config-salvar {
+  padding: 0.65rem 1.3rem;
+  border: 1px solid var(--verde);
+  background: var(--verde);
+  color: #fff;
+  border-radius: var(--raio-sm);
+  font-size: 0.95rem;
+  font-weight: 600;
+  box-shadow: var(--sombra-sm);
+  align-self: flex-start;
+}
+
+.config-salvar:hover:not(:disabled) {
+  background: var(--verde-escuro);
+}
+
+.contas__link {
+  align-self: flex-start;
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 0.8rem;
+  color: var(--verde-escuro);
+  font-weight: 500;
+}
+
+.contas__link:hover {
+  text-decoration: underline;
+}
+
+.contas__inline-form {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem;
+  margin-bottom: 0.9rem;
+  background: var(--superficie-2);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-sm);
+  flex-wrap: wrap;
+}
+
+.contas__inline-form input[type='text'] {
+  flex: 1;
+  min-width: 140px;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--borda-forte);
+  border-radius: var(--raio-sm);
+  background: var(--superficie);
+  font-size: 0.9rem;
+}
+
+.contas__inline-form button {
+  padding: 0.4rem 0.8rem;
+  border: 1px solid var(--borda-forte);
+  background: var(--superficie);
+  border-radius: var(--raio-sm);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--texto);
+  white-space: nowrap;
+}
+
+.contas__inline-form button:first-of-type {
+  border-color: var(--verde);
+  background: var(--verde);
+  color: #fff;
+}
+
+.contas__inline-form button:first-of-type:hover {
+  background: var(--verde-escuro);
+}
+
+.contas__checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--texto-suave);
+  white-space: nowrap;
+}
+
+.contas__tabela {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.contas__tabela thead th {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--texto-fraco);
+  font-weight: 600;
+  text-align: left;
+  padding: 0.6rem 0.6rem;
+  border-bottom: 1px solid var(--borda);
+}
+
+.contas__tabela td {
+  padding: 0.55rem 0.6rem;
+  border-bottom: 1px solid var(--borda);
+  color: var(--texto-suave);
+}
+
+.contas__tabela tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.contas__tabela td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--texto);
+}
+
+.contas__tabela button {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--borda-forte);
+  background: var(--superficie);
+  border-radius: var(--raio-sm);
+  font-size: 0.8rem;
+  color: var(--texto-suave);
+}
+
+.contas__tabela button + button {
+  margin-left: 0.35rem;
+}
+
+.contas__tabela button:hover {
+  background: var(--vermelho-bg);
+  border-color: var(--vermelho);
+  color: var(--vermelho);
+}
+
+/* Filtro de período da lista */
+.contas__lista-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--borda);
+}
+
+.contas__lista-cabecalho h2 {
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.contas__filtro {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+  color: var(--texto-suave);
+}
+
+.contas__filtro button {
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--borda-forte);
+  background: var(--superficie);
+  border-radius: var(--raio-sm);
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--texto-suave);
+  white-space: nowrap;
+}
+
+.contas__filtro button:hover {
+  background: var(--superficie-2);
+  color: var(--texto);
+}
+
+.contas__filtro input[type='date'] {
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--borda-forte);
+  border-radius: var(--raio-sm);
+  background: var(--superficie);
+  font-size: 0.85rem;
+}
+
+/* Despesas agrupadas por dia */
+.contas__dia {
+  margin-bottom: 1.25rem;
+}
+
+.contas__dia:last-child {
+  margin-bottom: 0;
+}
+
+.contas__dia-cabecalho {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 0.4rem;
+}
+
+.contas__dia-cabecalho h3 {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--texto);
+}
+
+.contas__dia-cabecalho strong {
+  font-variant-numeric: tabular-nums;
+  color: var(--texto);
+}
+
+/* Edição inline de uma despesa lançada */
+.contas__edicao {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  padding: 0.3rem 0;
+}
+
+.contas__edicao input,
+.contas__edicao select {
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--borda-forte);
+  border-radius: var(--raio-sm);
+  background: var(--superficie);
+  font-size: 0.85rem;
+}
+
+.contas__edicao input[type='text'] {
+  flex: 1;
+  min-width: 120px;
+}
+
+.contas__edicao input[type='number'] {
+  width: 100px;
+}
+
+.contas__edicao button {
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--borda-forte);
+  background: var(--superficie);
+  border-radius: var(--raio-sm);
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--texto-suave);
+  white-space: nowrap;
+}
+
+.contas__edicao button[type='submit'] {
+  border-color: var(--verde);
+  background: var(--verde);
+  color: #fff;
+}
+
+.contas__edicao button[type='submit']:hover {
+  background: var(--verde-escuro);
+}
