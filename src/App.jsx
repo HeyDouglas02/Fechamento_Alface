@@ -8,6 +8,7 @@ import Login from './pages/Login'
 import Painel from './pages/Painel'
 import Fechamento from './pages/Fechamento'
 import Historico from './pages/Historico'
+import Contas from './pages/Contas'
 import Configuracoes from './pages/Configuracoes'
 import logo from './assets/logo.jpg'
 import './App.css'
@@ -49,6 +50,7 @@ function App() {
 
   const abas = [
     { id: 'painel', rotulo: 'Painel' },
+    { id: 'contas', rotulo: 'Contas' },
     { id: 'fechamento', rotulo: 'Fechamento' },
     { id: 'historico', rotulo: 'Histórico' },
     { id: 'configuracoes', rotulo: 'Configurações' },
@@ -87,6 +89,7 @@ function App() {
           <Fechamento alvoData={alvo.data} alvoToken={alvo.token} usuario={usuario} />
         )}
         {tela === 'historico' && <Historico onAbrir={abrirFechamento} />}
+        {tela === 'contas' && <Contas />}
         {tela === 'configuracoes' && <Configuracoes />}
       </main>
     </div>
