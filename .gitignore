@@ -22,8 +22,13 @@ server/data
 # Ícone gerado a partir da logo (recriado por criar-atalho)
 public/logo.ico
 
-# Configuração local do Claude Code (pessoal, não versionar)
-.claude/settings.local.json
+# Configuração local do Claude Code e artifacts de design (pessoal/tool, não versionar)
+.claude/
+.impeccable/
+
+# Variáveis de ambiente
+.env
+.env.local
 
 # Editor directories and files
 .vscode/*
