@@ -184,6 +184,12 @@
   opacity: 0.6;
 }
 
+.config-botoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 .config-versao {
   display: flex;
   align-items: center;

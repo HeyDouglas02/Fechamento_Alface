@@ -17,10 +17,15 @@ export default function Configuracoes() {
   // Sistema (atualização + backup).
   const [versao, setVersao] = useState(null);
   const [carregandoVersao, setCarregandoVersao] = useState(true);
+  // Checagem de novidade é sob demanda (botão), não ao abrir a tela:
+  // null = ainda não verificou nesta sessão.
+  const [checagem, setChecagem] = useState(null);
+  const [verificando, setVerificando] = useState(false);
   const [atualizando, setAtualizando] = useState(false);
   const [logAtualizacao, setLogAtualizacao] = useState([]);
   const [statusBackup, setStatusBackup] = useState(null);
   const [carregandoBackup, setCarregandoBackup] = useState(true);
+  const [msgBackup, setMsgBackup] = useState('');
 
   // Usuários (operadores).
   const [usuarios, setUsuarios] = useState([]);
@@ -54,6 +59,21 @@ export default function Configuracoes() {
       .then(setVersao)
       .catch(() => setVersao(null))
       .finally(() => setCarregandoVersao(false));
+  }
+
+  async function verificarAtualizacao() {
+    setVerificando(true);
+    setChecagem(null);
+    try {
+      const res = await fetch('/api/sistema/verificar-atualizacao');
+      const dados = await res.json();
+      if (!res.ok) throw new Error(dados.erro || 'Não foi possível verificar.');
+      setChecagem({ temAtualizacao: dados.temAtualizacao });
+    } catch (err) {
+      setChecagem({ erro: err.message });
+    } finally {
+      setVerificando(false);
+    }
   }
 
   function carregarStatusBackup() {
@@ -129,13 +149,20 @@ export default function Configuracoes() {
 
   async function fazerBackupAgora() {
     setCarregandoBackup(true);
+    setMsgBackup('');
     try {
       const res = await fetch('/api/sistema/google/backup-agora', { method: 'POST' });
-      if (!res.ok) throw new Error((await res.json()).erro || 'Erro ao fazer backup.');
+      const dados = await res.json();
+      if (!res.ok) {
+        // Token expirado: precisa reconectar, então libera o botão de conexão.
+        if (dados.precisaReconectar) setStatusBackup((s) => ({ ...s, conectado: false }));
+        throw new Error(dados.erro || 'Erro ao fazer backup.');
+      }
+      setMsgBackup(dados.msg || 'Backup enviado.');
       carregarStatusBackup();
     } catch (err) {
       setCarregandoBackup(false);
-      alert(err.message);
+      setMsgBackup(err.message);
     }
   }
 
@@ -326,23 +353,36 @@ export default function Configuracoes() {
           <div>
             <h3 className="config-subtitulo">Atualização</h3>
             {carregandoVersao ? (
-              <p className="config-aviso">Verificando versão…</p>
+              <p className="config-aviso">Carregando…</p>
             ) : versao ? (
               <>
                 <p className="config-versao">
                   Versão {versao.versao}
-                  {versao.temAtualizacao && <span className="config-badge">Atualização disponível</span>}
+                  {checagem?.temAtualizacao && <span className="config-badge">Atualização disponível</span>}
                 </p>
                 {versao.commit && (
                   <p className="config-aviso">Instalada em {versao.data} · código {versao.commit}</p>
                 )}
               </>
             ) : (
-              <p className="config-aviso">Não foi possível verificar a versão.</p>
+              <p className="config-aviso">Não foi possível ler a versão.</p>
             )}
-            <button type="button" onClick={atualizarSistema} disabled={atualizando}>
-              {atualizando ? 'Atualizando…' : 'Atualizar agora'}
-            </button>
+
+            {checagem?.temAtualizacao === false && (
+              <p className="config-aviso">Sistema já está na versão mais recente.</p>
+            )}
+            {checagem?.erro && <p className="config-aviso">{checagem.erro}</p>}
+
+            <div className="config-botoes">
+              <button type="button" onClick={verificarAtualizacao} disabled={verificando || atualizando}>
+                {verificando ? 'Verificando…' : 'Verificar atualizações'}
+              </button>
+              {checagem?.temAtualizacao && (
+                <button type="button" onClick={atualizarSistema} disabled={atualizando}>
+                  {atualizando ? 'Atualizando…' : 'Atualizar agora'}
+                </button>
+              )}
+            </div>
 
             {logAtualizacao.length > 0 && (
               <pre className="config-log">{logAtualizacao.join('\n')}</pre>
@@ -358,6 +398,11 @@ export default function Configuracoes() {
                 Conectado. Último backup:{' '}
                 <strong>{statusBackup.ultimoBackup || 'ainda não houve'}</strong>
               </p>
+            ) : statusBackup?.configurado === false ? (
+              <p className="config-aviso">
+                Backup não configurado — falta preencher as credenciais do Google
+                no arquivo <code>.env</code> e reiniciar o sistema.
+              </p>
             ) : (
               <p className="config-aviso">Google Drive não conectado.</p>
             )}
@@ -367,10 +412,17 @@ export default function Configuracoes() {
                 Fazer backup agora
               </button>
             ) : (
-              <button type="button" onClick={conectarGoogleDrive}>
+              <button
+                type="button"
+                onClick={conectarGoogleDrive}
+                disabled={statusBackup?.configurado === false}
+                title={statusBackup?.configurado === false ? 'Configure as credenciais no .env primeiro' : undefined}
+              >
                 Conectar Google Drive
               </button>
             )}
+
+            {msgBackup && <p className="config-aviso">{msgBackup}</p>}
           </div>
         </div>
       </section>

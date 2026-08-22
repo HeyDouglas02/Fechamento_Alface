@@ -35,32 +35,33 @@ const VERSAO = (() => {
 // GET /api/sistema/versao — versão, commit atual e status de atualização.
 // A versão é o que o operador lê; o commit fica como detalhe técnico (útil pra
 // saber exatamente qual código está rodando quando a versão não mudou).
+// Só informação LOCAL — nada de rede. Abrir Configurações não pode ficar
+// esperando um git fetch: a checagem de novidade é sob demanda, no botão
+// "Verificar atualizações" (ver /verificar-atualizacao).
 router.get('/versao', async (req, res) => {
   try {
     const commitHash = await exec('git', ['rev-parse', 'HEAD']);
     const commitDate = await exec('git', ['log', '-1', '--format=%ai', commitHash]);
-
-    // Tenta buscar do remoto (pode falhar se offline). Conta quantos commits o
-    // branch remoto tem que o local ainda não tem — não basta comparar hash,
-    // porque o local pode estar À FRENTE (commits locais não publicados).
-    let temAtualizacao = false;
-    try {
-      await exec('git', ['fetch']);
-      const atras = await exec('git', ['rev-list', '--count', 'HEAD..@{u}']);
-      temAtualizacao = Number(atras) > 0;
-    } catch {
-      // Offline, ou sem upstream configurado — fica como false
-    }
-
-    res.json({
-      versao: VERSAO,
-      commit: commitHash.slice(0, 7),
-      data: commitDate.slice(0, 10),
-      temAtualizacao,
-    });
+    res.json({ versao: VERSAO, commit: commitHash.slice(0, 7), data: commitDate.slice(0, 10) });
   } catch (err) {
     // Sem git (ou pasta que não é um clone): ainda dá pra informar a versão.
-    res.json({ versao: VERSAO, commit: null, data: null, temAtualizacao: false, aviso: err.message });
+    res.json({ versao: VERSAO, commit: null, data: null, aviso: err.message });
+  }
+});
+
+// GET /api/sistema/verificar-atualizacao — consulta o servidor (tem rede).
+// Conta quantos commits o remoto tem que o local ainda não tem: comparar hash
+// não serve, porque o local pode estar À FRENTE (commits ainda não publicados).
+router.get('/verificar-atualizacao', async (req, res) => {
+  try {
+    await exec('git', ['fetch']);
+    const atras = Number(await exec('git', ['rev-list', '--count', 'HEAD..@{u}']));
+    res.json({ temAtualizacao: atras > 0, commitsAtras: atras });
+  } catch (err) {
+    res.status(503).json({
+      erro: 'Não foi possível consultar o servidor. Verifique a conexão com a internet.',
+      detalhe: err.message,
+    });
   }
 });
 
@@ -122,16 +123,32 @@ router.post('/atualizar', async (req, res) => {
   }
 });
 
+// Credenciais só valem se estiverem preenchidas de verdade — o .env.example vem
+// com textos de exemplo, e deixá-los passar gera uma URL que o Google rejeita
+// com "401 invalid_client", erro que não diz o que está faltando.
+function credenciaisGoogleOk() {
+  const id = (process.env.GOOGLE_CLIENT_ID || '').trim();
+  const secret = (process.env.GOOGLE_CLIENT_SECRET || '').trim();
+  if (!id || !secret) return false;
+  if (id.includes('aqui') || secret.includes('aqui')) return false; // placeholders do .env.example
+  return id.endsWith('.apps.googleusercontent.com');
+}
+
+const ERRO_CREDENCIAIS =
+  'Credenciais do Google não configuradas. Preencha GOOGLE_CLIENT_ID e ' +
+  'GOOGLE_CLIENT_SECRET no arquivo .env com os valores do Google Cloud e ' +
+  'reinicie o sistema.';
+
 // GET /api/sistema/google/status — status da conexão e último backup
 router.get('/google/status', (req, res) => {
   const status = statusBackup();
-  res.json(status);
+  res.json({ ...status, configurado: credenciaisGoogleOk() });
 });
 
 // GET /api/sistema/google/auth-url — URL de consentimento OAuth
 router.get('/google/auth-url', (req, res) => {
-  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-    return res.status(400).json({ erro: 'Credenciais do Google não configuradas no .env (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET).' });
+  if (!credenciaisGoogleOk()) {
+    return res.status(400).json({ erro: ERRO_CREDENCIAIS });
   }
   try {
     const oauth2Client = new google.auth.OAuth2(
@@ -181,11 +198,12 @@ router.post('/google/backup-agora', async (req, res) => {
   const dbPath = db.path;
 
   try {
-    const sucesso = await uploadBackup(dbPath);
-    if (sucesso) {
-      res.json({ ok: true, msg: 'Backup realizado com sucesso' });
+    const r = await uploadBackup(dbPath);
+    if (r.ok) {
+      res.json({ ok: true, msg: `Backup enviado: ${r.arquivo}` });
     } else {
-      res.status(500).json({ erro: 'Falha ao fazer backup' });
+      // O motivo vem junto — quem opera precisa saber o que corrigir.
+      res.status(500).json({ erro: r.erro, precisaReconectar: !!r.precisaReconectar });
     }
   } catch (err) {
     res.status(500).json({ erro: err.message });

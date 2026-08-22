@@ -34,16 +34,18 @@ function dataHoje() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+// Faz o upload e devolve { ok, erro }. O motivo da falha sobe junto: engolir o
+// erro e mostrar só "falha" deixa quem opera sem saber o que corrigir.
 export async function uploadBackup(dbPath) {
   const token = lerToken();
   if (!token) {
     console.warn('[Backup] Google Drive não conectado — ignorando backup');
-    return false;
+    return { ok: false, erro: 'Google Drive não conectado. Use "Conectar Google Drive" primeiro.' };
   }
 
   if (!existsSync(dbPath)) {
     console.warn(`[Backup] Banco não encontrado em ${dbPath}`);
-    return false;
+    return { ok: false, erro: `Banco de dados não encontrado em ${dbPath}.` };
   }
 
   try {
@@ -115,10 +117,28 @@ export async function uploadBackup(dbPath) {
     salvarLogBackup({ ...lerLogBackup(), ultimoBackup: hoje, folderId });
 
     console.log(`[Backup] ✓ Backup realizado: ${fileName}`);
-    return true;
+    return { ok: true, arquivo: fileName };
   } catch (err) {
-    console.error(`[Backup] Erro ao fazer upload: ${err.message}`);
-    return false;
+    // A googleapis embute o motivo em lugares diferentes conforme o tipo de
+    // falha (HTTP, OAuth, rede).
+    const detalhe =
+      err?.response?.data?.error_description ||
+      err?.response?.data?.error?.message ||
+      err?.errors?.[0]?.message ||
+      err?.message ||
+      'erro desconhecido';
+    console.error(`[Backup] Erro ao fazer upload: ${detalhe}`);
+
+    // Token revogado/expirado é o caso mais comum e tem conserto claro.
+    const precisaReconectar =
+      /invalid_grant|invalid_token|unauthorized|Token has been expired or revoked/i.test(detalhe);
+    return {
+      ok: false,
+      erro: precisaReconectar
+        ? 'A autorização do Google expirou. Clique em "Conectar Google Drive" para autorizar de novo.'
+        : `Falha no backup: ${detalhe}`,
+      precisaReconectar,
+    };
   }
 }
 
