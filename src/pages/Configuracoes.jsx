@@ -119,10 +119,11 @@ export default function Configuracoes() {
   async function conectarGoogleDrive() {
     try {
       const res = await fetch('/api/sistema/google/auth-url');
-      const { authUrl } = await res.json();
-      window.open(authUrl, '_blank');
-    } catch {
-      setStatusBackup((s) => ({ ...s, erro: 'Não foi possível gerar o link de conexão.' }));
+      const dados = await res.json();
+      if (!res.ok) throw new Error(dados.erro || 'Não foi possível gerar o link de conexão.');
+      window.open(dados.authUrl, '_blank');
+    } catch (err) {
+      alert(err.message);
     }
   }
 

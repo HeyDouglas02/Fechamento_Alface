@@ -26,14 +26,16 @@ router.get('/versao', async (req, res) => {
     const commitHash = await exec('git', ['rev-parse', 'HEAD']);
     const commitDate = await exec('git', ['log', '-1', '--format=%ai', commitHash]);
 
-    // Tenta buscar do origin (pode falhar se offline)
+    // Tenta buscar do remoto (pode falhar se offline). Conta quantos commits o
+    // branch remoto tem que o local ainda não tem — não basta comparar hash,
+    // porque o local pode estar À FRENTE (commits locais não publicados).
     let temAtualizacao = false;
     try {
-      await exec('git', ['fetch', 'origin']);
-      const originHash = await exec('git', ['rev-parse', 'origin/HEAD']);
-      temAtualizacao = commitHash !== originHash;
+      await exec('git', ['fetch']);
+      const atras = await exec('git', ['rev-list', '--count', 'HEAD..@{u}']);
+      temAtualizacao = Number(atras) > 0;
     } catch {
-      // Offline — fica como false
+      // Offline, ou sem upstream configurado — fica como false
     }
 
     res.json({
@@ -112,6 +114,9 @@ router.get('/google/status', (req, res) => {
 
 // GET /api/sistema/google/auth-url — URL de consentimento OAuth
 router.get('/google/auth-url', (req, res) => {
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    return res.status(400).json({ erro: 'Credenciais do Google não configuradas no .env (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET).' });
+  }
   try {
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,

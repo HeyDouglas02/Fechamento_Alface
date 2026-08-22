@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { exec } from 'node:child_process';
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import cron from 'node-cron';
