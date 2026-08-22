@@ -1,18 +1,19 @@
 // Painel — Receitas: visão gerencial de faturamento a partir dos fechamentos
-// já registrados. Tudo agregado no cliente a partir de /api/fechamentos,
-// /api/pendencias, /api/a-prazo e /api/ifood — nenhuma rota nova no backend.
-// A composição de pagamentos mistura dois tipos de dado com cuidado pra não
-// confundir: os campos "microvix..." são o registro do dia da VENDA (Microvix),
-// enquanto a_prazo/ifood recebidos vêm das tabelas de RECEBIMENTO — dinheiro
-// que efetivamente entrou, podendo ser de venda de outro dia. O "nº de vendas"
-// (quando preenchido) destrava o ticket médio. Gráficos são SVG/CSS próprios
-// (sem biblioteca), nas cores da marca. Sub-aba de Painel — CSS compartilhado
-// em Painel.css, importado pela casca (Painel.jsx).
+// já registrados. Tudo agregado no cliente a partir de /api/fechamentos e
+// /api/pendencias — nenhum dado novo é necessário. O "nº de vendas" (quando
+// preenchido) destrava o ticket médio. Gráficos são SVG/CSS próprios (sem
+// biblioteca), nas cores da marca. Sub-aba de Painel — CSS compartilhado em
+// Painel.css, importado pela casca (Painel.jsx).
 
 import { useEffect, useMemo, useState } from 'react';
 import { formatarBRL, formatarData } from '../utils/formatacao';
+import { receitaDoDia } from '../utils/calculos';
 
 const n = (x) => Number(x) || 0;
+
+// Faturamento = o que o Microvix registrou como VENDA no dia (regime de
+// competência), independente de quando o dinheiro entra. Diferente da receita
+// do DRE, que é regime de caixa — ver receitaDoDia em calculos.js.
 const faturamento = (f) =>
   n(f.microvixCredito) + n(f.microvixDebito) + n(f.microvixVoucher) +
   n(f.microvixPix) + n(f.microvixDinheiro) + n(f.microvixAPrazo) + n(f.microvixIfood);
@@ -46,14 +47,11 @@ const mesAnteriorDe = (iso) => {
 
 const CORES_PAG = {
   credito: '#2f7d32', debito: '#43a83a', voucher: '#9fc23a', pix: '#2f9e9e', dinheiro: '#c9a227',
-  aPrazoRecebido: '#b7791f', ifoodRecebido: '#d8362b',
 };
 
 export default function PainelReceitas() {
   const [fechamentos, setFechamentos] = useState([]);
   const [pendencias, setPendencias] = useState([]);
-  const [aPrazoRecebimentos, setAPrazoRecebimentos] = useState([]);
-  const [ifoodRepasses, setIfoodRepasses] = useState([]);
   const [inicio, setInicio] = useState('');
   const [fim, setFim] = useState('');
   const [carregando, setCarregando] = useState(true);
@@ -62,15 +60,11 @@ export default function PainelReceitas() {
     Promise.all([
       fetch('/api/fechamentos').then((r) => r.json()),
       fetch('/api/pendencias?status=aberta').then((r) => r.json()),
-      fetch('/api/a-prazo').then((r) => r.json()),
-      fetch('/api/ifood').then((r) => r.json()),
     ])
-      .then(([fs, ps, ap, ifs]) => {
+      .then(([fs, ps]) => {
         const lista = Array.isArray(fs) ? fs : [];
         setFechamentos(lista);
         setPendencias(Array.isArray(ps) ? ps : []);
-        setAPrazoRecebimentos(Array.isArray(ap) ? ap : []);
-        setIfoodRepasses(Array.isArray(ifs) ? ifs : []);
         // Período padrão = mês do fechamento mais recente.
         if (lista.length) {
           const ultima = lista.reduce((a, f) => (f.data > a ? f.data : a), lista[0].data);
@@ -111,7 +105,9 @@ export default function PainelReceitas() {
     const fatTotal = lista.reduce((s, f) => s + faturamento(f), 0);
     const totalVendas = lista.reduce((s, f) => s + n(f.numeroVendas), 0);
     const difCaixa = lista.reduce((s, f) => s + n(f.diferencaDinheiro) + n(f.diferencaCartaoPix), 0);
-    const recebido = lista.reduce((s, f) => s + n(f.totalRealMaquininhas) + n(f.microvixDinheiro), 0);
+    // Dinheiro que realmente entrou — mesma fórmula do DRE (calculos.js), pra
+    // os dois números nunca divergirem.
+    const recebido = lista.reduce((s, f) => s + receitaDoDia(f), 0);
 
     const comp = { credito: 0, debito: 0, voucher: 0, pix: 0, dinheiro: 0 };
     let aPrazo = 0, ifood = 0;
@@ -121,16 +117,6 @@ export default function PainelReceitas() {
       comp.dinheiro += n(f.microvixDinheiro);
       aPrazo += n(f.microvixAPrazo); ifood += n(f.microvixIfood);
     }
-
-    // Dinheiro que REALMENTE entrou no período (diferente de aPrazo/ifood acima,
-    // que são só o registro do Microvix no dia da venda) — usados na composição
-    // de pagamentos, não em "Registros do período".
-    comp.aPrazoRecebido = aPrazoRecebimentos
-      .filter((r) => r.data >= inicio && r.data <= fim)
-      .reduce((s, r) => s + n(r.valor), 0);
-    comp.ifoodRecebido = ifoodRepasses
-      .filter((r) => r.dataRepasse >= inicio && r.dataRepasse <= fim)
-      .reduce((s, r) => s + n(r.valorRecebido), 0);
 
     // Comparativo: período anterior de mesma duração, imediatamente antes.
     const durDias = Math.round((new Date(fim) - new Date(inicio)) / 86400000) + 1;
@@ -146,7 +132,7 @@ export default function PainelReceitas() {
       dias: lista.length, difCaixa, recebido, comp, aPrazo, ifood, variacao,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fechamentos, aPrazoRecebimentos, ifoodRepasses, inicio, fim]);
+  }, [fechamentos, inicio, fim]);
 
   const pendTotal = pendencias.reduce((s, p) => s + n(p.valor), 0);
 
@@ -168,8 +154,6 @@ export default function PainelReceitas() {
     { label: 'Voucher', valor: resumo?.comp.voucher || 0, cor: CORES_PAG.voucher },
     { label: 'Pix', valor: resumo?.comp.pix || 0, cor: CORES_PAG.pix },
     { label: 'Dinheiro', valor: resumo?.comp.dinheiro || 0, cor: CORES_PAG.dinheiro },
-    { label: 'A prazo (recebido)', valor: resumo?.comp.aPrazoRecebido || 0, cor: CORES_PAG.aPrazoRecebido },
-    { label: 'iFood (recebido)', valor: resumo?.comp.ifoodRecebido || 0, cor: CORES_PAG.ifoodRecebido },
   ].filter((d) => d.valor > 0);
   const compTotal = compDados.reduce((s, d) => s + d.valor, 0);
 

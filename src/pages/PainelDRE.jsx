@@ -10,6 +10,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { formatarBRL, formatarData } from '../utils/formatacao';
+import { receitaDoDia } from '../utils/calculos';
 
 const n = (x) => Number(x) || 0;
 
@@ -29,15 +30,11 @@ const mesAnteriorDe = (iso) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
 };
 
-// Receita do dia (regime de caixa): tudo que fisicamente entrou, bruto — não
-// afetado por ajustes/pendências (esses só explicam a diferença, não mudam
-// quanto entrou de fato).
-const receitaDoDia = (f) => n(f.totalRealMaquininhas) + n(f.fechamentoCaixa1) + n(f.fechamentoCaixa2);
-
 export default function PainelDRE() {
   const [fechamentos, setFechamentos] = useState([]);
   const [despesas, setDespesas] = useState([]);
   const [repasses, setRepasses] = useState([]);
+  const [aPrazoRecebimentos, setAPrazoRecebimentos] = useState([]);
   const [inicio, setInicio] = useState('');
   const [fim, setFim] = useState('');
   const [carregando, setCarregando] = useState(true);
@@ -68,6 +65,10 @@ export default function PainelDRE() {
       .then((r) => r.json())
       .then((r) => setRepasses(Array.isArray(r) ? r : []))
       .catch(() => setRepasses([]));
+    fetch('/api/a-prazo')
+      .then((r) => r.json())
+      .then((r) => setAPrazoRecebimentos(Array.isArray(r) ? r : []))
+      .catch(() => setAPrazoRecebimentos([]));
   }, [inicio, fim]);
 
   const ultimaData = useMemo(
@@ -94,8 +95,16 @@ export default function PainelDRE() {
     const receitaIfood = repasses.reduce((s, r) => s + n(r.valorRecebido), 0);
     const receita = receitaCaixa + receitaIfood;
     const despesaTotal = despesas.reduce((s, d) => s + n(d.valor), 0);
-    return { dias: fechDoPeriodo.length, receita, receitaIfood, despesaTotal, resultado: receita - despesaTotal };
-  }, [fechamentos, despesas, repasses, inicio, fim]);
+    // Só pra mostrar de onde veio — a prazo recebido já está DENTRO de
+    // receitaCaixa (o dinheiro foi contado no caixa ou passou na maquininha).
+    const receitaAPrazo = aPrazoRecebimentos
+      .filter((r) => r.data >= inicio && r.data <= fim)
+      .reduce((s, r) => s + n(r.valor), 0);
+    return {
+      dias: fechDoPeriodo.length, receita, receitaCaixa, receitaIfood, receitaAPrazo,
+      despesaTotal, resultado: receita - despesaTotal,
+    };
+  }, [fechamentos, despesas, repasses, aPrazoRecebimentos, inicio, fim]);
 
   if (carregando) {
     return <p className="painel__vazio">Carregando…</p>;
@@ -134,16 +143,7 @@ export default function PainelDRE() {
       )}
 
       <div className="kpis kpis--dre">
-        <Kpi
-          titulo="Receita"
-          valor={formatarBRL(resumo?.receita || 0)}
-          rodape={
-            resumo?.receitaIfood
-              ? `maquininhas + dinheiro + iFood (${formatarBRL(resumo.receitaIfood)}), regime de caixa`
-              : 'maquininhas + dinheiro, regime de caixa'
-          }
-          principal
-        />
+        <Kpi titulo="Receita" valor={formatarBRL(resumo?.receita || 0)} rodape="regime de caixa" principal />
         <Kpi titulo="Despesas" valor={formatarBRL(resumo?.despesaTotal || 0)} rodape={`${despesas.length} lançamento(s)`} />
         <Kpi
           titulo="Resultado"
@@ -152,6 +152,18 @@ export default function PainelDRE() {
           cor={resumo?.resultado < 0 ? 'neg' : 'zero'}
         />
       </div>
+
+      <section className="cartao">
+        <h2>De onde veio a Receita</h2>
+        <dl className="lista-stats">
+          <div><dt>Maquininhas + dinheiro</dt><dd>{formatarBRL(resumo?.receitaCaixa || 0)}</dd></div>
+          <div><dt>iFood recebido</dt><dd>{formatarBRL(resumo?.receitaIfood || 0)}</dd></div>
+        </dl>
+        <p className="painel__nota">
+          A prazo recebido no período ({formatarBRL(resumo?.receitaAPrazo || 0)}) já está incluso em
+          "Maquininhas + dinheiro" — o valor foi contado no caixa ou passou na maquininha no dia do recebimento.
+        </p>
+      </section>
 
       <p className="painel__nota">
         Detalhe de despesa por categoria e fornecedor: aba <strong>Despesas</strong>.

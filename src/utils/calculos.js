@@ -177,6 +177,41 @@ function conferenciaCartaoPix(d = {}) {
 }
 
 // ---------------------------------------------------------------------------
+// RECEITA em regime de caixa (usada no DRE e no Painel)
+// ---------------------------------------------------------------------------
+// Quanto dinheiro FISICAMENTE entrou no caixa durante o dia. NÃO é o mesmo que
+// o fechamento contado: a gaveta no fim do dia também tem o troco que já estava
+// lá na abertura (e o suprimento colocado durante o dia), que não é receita.
+//
+//   fechamento = abertura + suprimento − sangria + (tudo que entrou)
+//   logo:  entrou = fechamento − abertura − suprimento + sangria
+//
+// A sangria SOMA de volta porque é dinheiro que entrou e depois saiu do caixa
+// para pagar algo — esse pagamento é lançado como despesa em Contas, então
+// descontá-lo aqui também o contaria duas vezes.
+//
+// O que "entrou" inclui, de propósito (regime de caixa — o que importa é o
+// dinheiro ter chegado, não de qual venda ele veio):
+//   - venda em dinheiro do dia
+//   - recebimento de a prazo / pendência em espécie (venda de outro dia)
+//   - a sobra ou falta real do caixa
+function entradaDinheiro(d = {}) {
+  const abertura = n(d.aberturaCaixa1) + n(d.aberturaCaixa2);
+  const suprimento = n(d.suprimentoCaixa1) + n(d.suprimentoCaixa2);
+  const sangria = n(d.sangriaCaixa1) + n(d.sangriaCaixa2);
+  const fechamento = n(d.fechamentoCaixa1) + n(d.fechamentoCaixa2);
+  return arredondar(fechamento - abertura - suprimento + sangria);
+}
+
+// Receita do dia em regime de caixa: o que entrou pelas maquininhas mais o que
+// entrou em dinheiro no caixa. NÃO inclui o repasse do iFood — esse dinheiro
+// cai direto na conta bancária, sem passar por caixa nem maquininha, e é somado
+// à parte no dia do repasse (ver ifood_repasses).
+function receitaDoDia(d = {}) {
+  return arredondar(totalMaquininhas(d) + entradaDinheiro(d));
+}
+
+// ---------------------------------------------------------------------------
 // Agregador: calcula TODOS os valores derivados de um fechamento de uma vez.
 // O servidor usa isto para gravar os campos calculados (histórico imutável).
 // ---------------------------------------------------------------------------
@@ -191,6 +226,8 @@ export {
   arredondar,
   somaPendencias,
   totalMaquininhas,
+  entradaDinheiro,
+  receitaDoDia,
   conferenciaDinheiro,
   conferenciaCartaoPix,
   calcularFechamento,

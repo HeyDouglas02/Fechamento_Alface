@@ -9,6 +9,8 @@ import {
   conferenciaDinheiro,
   conferenciaCartaoPix,
   totalMaquininhas,
+  entradaDinheiro,
+  receitaDoDia,
 } from './calculos.js';
 
 let passou = 0;
@@ -161,6 +163,72 @@ teste('ajuste de dinheiro subtrai do contado (recebimento a prazo em espécie)',
   assert.equal(r.dinheiroContadoAjustado, 760); // 860 − 100
   assert.equal(r.diferencaDinheiro, -40);       // 760 − 800 => sinal −
   assert.equal(r.provavelMoeda, true);          // |−40| < 50
+});
+
+console.log('Receita em regime de caixa (DRE e Painel):');
+
+teste('dia simples: entrou só a venda em dinheiro (a abertura NÃO é receita)', () => {
+  // Abriu com 200 de troco, vendeu 1000, fechou com 1200.
+  const d = { aberturaCaixa1: 200, fechamentoCaixa1: 1200 };
+  assert.equal(entradaDinheiro(d), 1000);      // não 1200 — o troco já era da loja
+});
+
+teste('suprimento não conta como receita (troco trazido do cofre)', () => {
+  const d = { aberturaCaixa1: 200, suprimentoCaixa1: 300, fechamentoCaixa1: 1500 };
+  assert.equal(entradaDinheiro(d), 1000);      // 1500 − 200 − 300
+});
+
+teste('sangria SOMA de volta (o dinheiro entrou; a saída vira despesa em Contas)', () => {
+  const d = { aberturaCaixa1: 200, sangriaCaixa1: 150, fechamentoCaixa1: 1050 };
+  assert.equal(entradaDinheiro(d), 1000);      // 1050 − 200 + 150
+});
+
+teste('suprimento e sangria juntos', () => {
+  const d = {
+    aberturaCaixa1: 200, suprimentoCaixa1: 300,
+    sangriaCaixa1: 150, fechamentoCaixa1: 1350,
+  };
+  assert.equal(entradaDinheiro(d), 1000);      // 1350 − 200 − 300 + 150
+});
+
+teste('faltou dinheiro: receita é o que entrou de fato, não o que o Microvix diz', () => {
+  // Microvix registrou 1000 de venda em dinheiro, mas só 950 estão no caixa.
+  const d = { aberturaCaixa1: 200, fechamentoCaixa1: 1150, microvixDinheiro: 1000 };
+  assert.equal(entradaDinheiro(d), 950);
+});
+
+teste('sobrou dinheiro: recebimento de conta antiga em espécie conta como receita', () => {
+  // Vendeu 1000 e recebeu 300 de um fiado antigo, tudo em dinheiro.
+  const d = { aberturaCaixa1: 200, fechamentoCaixa1: 1500, microvixDinheiro: 1000 };
+  assert.equal(entradaDinheiro(d), 1300);      // regime de caixa: entrou 1300
+});
+
+teste('fundo de caixa alto não infla a receita', () => {
+  const d = { aberturaCaixa1: 15000, fechamentoCaixa1: 40000 };
+  assert.equal(entradaDinheiro(d), 25000);     // não 40000
+});
+
+teste('dia sem movimento de dinheiro dá zero', () => {
+  assert.equal(entradaDinheiro({}), 0);
+});
+
+teste('receitaDoDia soma maquininhas + dinheiro que entrou', () => {
+  const d = {
+    ...maquininhasExemplo,                     // 2850 nas maquininhas
+    aberturaCaixa1: 200, fechamentoCaixa1: 1200,
+  };
+  assert.equal(receitaDoDia(d), 3850);         // 2850 + 1000
+});
+
+teste('receita bate com o faturamento quando o dia fecha certinho', () => {
+  // Sem pendência, sem ajuste, sem diferença: o que entrou = o que o Microvix registrou.
+  const d = {
+    microvixCredito: 500, microvixDebito: 300, microvixPix: 200, microvixDinheiro: 1000,
+    maq1Cartao: 500, maq2Cartao: 300, maq1Pix: 200,
+    aberturaCaixa1: 200, fechamentoCaixa1: 1200,
+  };
+  const faturamento = 500 + 300 + 200 + 1000;  // 2000 (Microvix)
+  assert.equal(receitaDoDia(d), faturamento);  // 1000 maquininhas + 1000 dinheiro
 });
 
 console.log(`\n${passou} testes passaram.`);
