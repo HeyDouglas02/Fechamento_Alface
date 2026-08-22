@@ -27,25 +27,33 @@ const PALETA = ['#2f7d32', '#43a83a', '#9fc23a', '#2f9e9e', '#c9a227', '#b7791f'
 
 export default function PainelDespesas() {
   const hoje = hojeISO();
-  const [despesas, setDespesas] = useState([]);
+  // Carrega TODAS as despesas uma vez e filtra o período no cliente — mesmo
+  // padrão das outras sub-abas. Filtrar na API deixava o "Tudo" preso: ele só
+  // enxergava as despesas já carregadas, então nunca expandia o período.
+  const [todas, setTodas] = useState([]);
   const [inicio, setInicio] = useState(primeiroDiaMes(hoje));
   const [fim, setFim] = useState(ultimoDiaMes(hoje));
   const [carregando, setCarregando] = useState(true);
 
   useEffect(() => {
-    fetch(`/api/despesas?inicio=${inicio}&fim=${fim}`)
+    fetch('/api/despesas')
       .then((r) => r.json())
-      .then((d) => setDespesas(Array.isArray(d) ? d : []))
-      .catch(() => setDespesas([]))
+      .then((d) => setTodas(Array.isArray(d) ? d : []))
+      .catch(() => setTodas([]))
       .finally(() => setCarregando(false));
-  }, [inicio, fim]);
+  }, []);
+
+  const despesas = useMemo(
+    () => todas.filter((d) => d.data >= inicio && d.data <= fim),
+    [todas, inicio, fim]
+  );
 
   function presetMesAtual() { setInicio(primeiroDiaMes(hoje)); setFim(ultimoDiaMes(hoje)); }
   function presetMesAnterior() { const p = mesAnteriorDe(hoje); setInicio(p); setFim(ultimoDiaMes(p)); }
   function presetUltimos7() { setInicio(addDias(hoje, -6)); setFim(hoje); }
   function presetTudo() {
-    if (!despesas.length) return;
-    const datas = despesas.map((d) => d.data);
+    if (!todas.length) return;
+    const datas = todas.map((d) => d.data);
     setInicio(datas.reduce((a, d) => (d < a ? d : a)));
     setFim(datas.reduce((a, d) => (d > a ? d : a)));
   }
