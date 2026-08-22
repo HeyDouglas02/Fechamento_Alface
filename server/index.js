@@ -20,6 +20,7 @@ import pendenciasRouter from './routes/pendencias.js';
 import usuariosRouter from './routes/usuarios.js';
 import aPrazoRouter from './routes/aPrazo.js';
 import despesasRouter from './routes/despesas.js';
+import ifoodRouter from './routes/ifood.js';
 import sistemaRouter from './routes/sistema.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -76,6 +77,7 @@ async function main() {
   app.use('/api/usuarios', usuariosRouter);
   app.use('/api/a-prazo', aPrazoRouter);
   app.use('/api/despesas', despesasRouter);
+  app.use('/api/ifood', ifoodRouter);
   app.use('/api/sistema', sistemaRouter);
 
   // Em produção local, serve o frontend já buildado (pasta dist/) na mesma

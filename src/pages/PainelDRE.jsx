@@ -2,7 +2,9 @@
 // receita é o que realmente entrou (totalRealMaquininhas + dinheiro contado
 // dos fechamentos), não o que o Microvix registrou — por isso a
 // prazo/pendência recebidos já contam automaticamente no dia que o dinheiro
-// chegou, sem precisar somar nada à parte. Detalhe de despesa por categoria/
+// chegou, sem precisar somar nada à parte. iFood é diferente: o dinheiro não
+// passa pelo caixa/maquininha, então o repasse (valor líquido) entra somado
+// à parte, no dia do recebimento. Detalhe de despesa por categoria/
 // fornecedor fica na sub-aba Despesas. Sub-aba de Painel — CSS compartilhado
 // em Painel.css, importado pela casca (Painel.jsx).
 
@@ -35,6 +37,7 @@ const receitaDoDia = (f) => n(f.totalRealMaquininhas) + n(f.fechamentoCaixa1) + 
 export default function PainelDRE() {
   const [fechamentos, setFechamentos] = useState([]);
   const [despesas, setDespesas] = useState([]);
+  const [repasses, setRepasses] = useState([]);
   const [inicio, setInicio] = useState('');
   const [fim, setFim] = useState('');
   const [carregando, setCarregando] = useState(true);
@@ -61,6 +64,10 @@ export default function PainelDRE() {
       .then((r) => r.json())
       .then((d) => setDespesas(Array.isArray(d) ? d : []))
       .catch(() => setDespesas([]));
+    fetch(`/api/ifood?inicio=${inicio}&fim=${fim}`)
+      .then((r) => r.json())
+      .then((r) => setRepasses(Array.isArray(r) ? r : []))
+      .catch(() => setRepasses([]));
   }, [inicio, fim]);
 
   const ultimaData = useMemo(
@@ -81,10 +88,14 @@ export default function PainelDRE() {
   const resumo = useMemo(() => {
     if (!inicio || !fim) return null;
     const fechDoPeriodo = fechamentos.filter((f) => f.data >= inicio && f.data <= fim);
-    const receita = fechDoPeriodo.reduce((s, f) => s + receitaDoDia(f), 0);
+    const receitaCaixa = fechDoPeriodo.reduce((s, f) => s + receitaDoDia(f), 0);
+    // Repasse do iFood não passa pelo caixa/maquininha — reconhecido como
+    // receita no dia que o valor líquido efetivamente caiu na conta.
+    const receitaIfood = repasses.reduce((s, r) => s + n(r.valorRecebido), 0);
+    const receita = receitaCaixa + receitaIfood;
     const despesaTotal = despesas.reduce((s, d) => s + n(d.valor), 0);
-    return { dias: fechDoPeriodo.length, receita, despesaTotal, resultado: receita - despesaTotal };
-  }, [fechamentos, despesas, inicio, fim]);
+    return { dias: fechDoPeriodo.length, receita, receitaIfood, despesaTotal, resultado: receita - despesaTotal };
+  }, [fechamentos, despesas, repasses, inicio, fim]);
 
   if (carregando) {
     return <p className="painel__vazio">Carregando…</p>;
@@ -123,7 +134,16 @@ export default function PainelDRE() {
       )}
 
       <div className="kpis kpis--dre">
-        <Kpi titulo="Receita" valor={formatarBRL(resumo?.receita || 0)} rodape="maquininhas + dinheiro, regime de caixa" principal />
+        <Kpi
+          titulo="Receita"
+          valor={formatarBRL(resumo?.receita || 0)}
+          rodape={
+            resumo?.receitaIfood
+              ? `maquininhas + dinheiro + iFood (${formatarBRL(resumo.receitaIfood)}), regime de caixa`
+              : 'maquininhas + dinheiro, regime de caixa'
+          }
+          principal
+        />
         <Kpi titulo="Despesas" valor={formatarBRL(resumo?.despesaTotal || 0)} rodape={`${despesas.length} lançamento(s)`} />
         <Kpi
           titulo="Resultado"

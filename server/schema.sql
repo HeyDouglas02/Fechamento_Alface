@@ -137,6 +137,23 @@ CREATE TABLE IF NOT EXISTS a_prazo_recebimentos (
 );
 
 -- ---------------------------------------------------------------------------
+-- ifood_repasses: dinheiro não passa pelo caixa/maquininha — o iFood retém
+-- taxa e deposita o líquido periodicamente. Aqui registra o RECEBIMENTO do
+-- repasse (data que caiu na conta, valor líquido); o período coberto é só
+-- pra cruzar com o "iFood (só registro)" do Microvix nos fechamentos daquele
+-- intervalo e mostrar a taxa retida — não afeta o valor reconhecido.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ifood_repasses (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  data_repasse    TEXT NOT NULL,   -- AAAA-MM-DD, dia que o dinheiro caiu na conta
+  periodo_inicio  TEXT NOT NULL,   -- AAAA-MM-DD, início do período coberto
+  periodo_fim     TEXT NOT NULL,   -- AAAA-MM-DD, fim do período coberto
+  valor_recebido  REAL NOT NULL DEFAULT 0,   -- líquido — é o que entra na Receita do DRE
+  observacoes     TEXT,
+  criado_em       TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+);
+
+-- ---------------------------------------------------------------------------
 -- categorias_despesa: tipos de despesa (aluguel, salário, fornecedores...).
 -- Cadastro prévio para evitar categoria duplicada/digitada diferente.
 -- ---------------------------------------------------------------------------

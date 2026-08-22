@@ -9,6 +9,7 @@ import Painel from './pages/Painel'
 import Fechamento from './pages/Fechamento'
 import Historico from './pages/Historico'
 import Contas from './pages/Contas'
+import IFood from './pages/IFood'
 import Configuracoes from './pages/Configuracoes'
 import logo from './assets/logo.jpg'
 import './App.css'
@@ -51,6 +52,7 @@ function App() {
   const abas = [
     { id: 'painel', rotulo: 'Painel' },
     { id: 'contas', rotulo: 'Contas' },
+    { id: 'ifood', rotulo: 'iFood' },
     { id: 'fechamento', rotulo: 'Fechamento' },
     { id: 'historico', rotulo: 'Histórico' },
     { id: 'configuracoes', rotulo: 'Configurações' },
@@ -90,6 +92,7 @@ function App() {
         )}
         {tela === 'historico' && <Historico onAbrir={abrirFechamento} />}
         {tela === 'contas' && <Contas />}
+        {tela === 'ifood' && <IFood />}
         {tela === 'configuracoes' && <Configuracoes />}
       </main>
     </div>
