@@ -8,8 +8,9 @@ import assert from 'node:assert/strict';
 import {
   conferenciaDinheiro,
   conferenciaCartaoPix,
-  acumuladoSemanal,
   totalMaquininhas,
+  entradaDinheiro,
+  receitaDoDia,
 } from './calculos.js';
 
 let passou = 0;
@@ -149,46 +150,85 @@ teste('sobra grande => sinal + e não é provável moeda', () => {
   assert.equal(r.provavelMoeda, false);       // |100| não é < 50
 });
 
-console.log('Acumulado semanal de moedas (sábado):');
-
-teste('falta acumulada explicada pelas moedas => saldo pequeno', () => {
-  const r = acumuladoSemanal({
-    diferencasDinheiro: [-20, -15, -18, -10, -10], // soma −73 (seg a sex)
-    moedasCaixa1: 35,
-    moedasCaixa2: 28,   // total moedas 63
+teste('ajuste de dinheiro subtrai do contado (recebimento a prazo em espécie)', () => {
+  const r = conferenciaDinheiro({
+    aberturaCaixa1: 150, aberturaCaixa2: 150,   // abertura 300
+    microvixDinheiro: 500,
+    fechamentoCaixa1: 400, fechamentoCaixa2: 460, // contado 860 (100 é de a prazo recebido)
+    ajustesDinheiro: -100,                        // ajuste: recebimento a prazo -> subtrai
     limiteDiferencaMoeda: 50,
   });
-  assert.equal(r.acumulado, -73);
-  assert.equal(r.totalMoedas, 63);
-  assert.equal(r.saldoNaoExplicado, -10);     // −73 + 63
-  assert.equal(r.dentroLimite, true);         // |−10| < 50 => era moeda
+  assert.equal(r.dinheiroEsperado, 800);        // 300 abertura + 500 Microvix
+  assert.equal(r.dinheiroContado, 860);
+  assert.equal(r.dinheiroContadoAjustado, 760); // 860 − 100
+  assert.equal(r.diferencaDinheiro, -40);       // 760 − 800 => sinal −
+  assert.equal(r.provavelMoeda, true);          // |−40| < 50
 });
 
-teste('furo real: moedas não explicam a falta => saldo grande', () => {
-  const r = acumuladoSemanal({
-    diferencasDinheiro: [-50, -40, -30],       // soma −120
-    moedasCaixa1: 10,
-    moedasCaixa2: 10,   // total 20
-    limiteDiferencaMoeda: 50,
-  });
-  assert.equal(r.saldoNaoExplicado, -100);    // −120 + 20 (sem sábado anterior)
-  assert.equal(r.dentroLimite, false);        // furo a investigar
+console.log('Receita em regime de caixa (DRE e Painel):');
+
+teste('dia simples: entrou só a venda em dinheiro (a abertura NÃO é receita)', () => {
+  // Abriu com 200 de troco, vendeu 1000, fechou com 1200.
+  const d = { aberturaCaixa1: 200, fechamentoCaixa1: 1200 };
+  assert.equal(entradaDinheiro(d), 1000);      // não 1200 — o troco já era da loja
 });
 
-teste('moedas NÃO retiradas: usa o crescimento desde o sábado anterior', () => {
-  // Semana 2: falta −70. O caixa tem 133 em moedas (63 da semana passada + 70
-  // novas). O sábado anterior fechou com 63. O crescimento (70) explica a falta.
-  const r = acumuladoSemanal({
-    diferencasDinheiro: [-20, -15, -20, -10, -5], // soma −70
-    moedasCaixa1: 70,
-    moedasCaixa2: 63,   // total no caixa = 133
-    moedasSemanaAnterior: 63,
-    limiteDiferencaMoeda: 50,
-  });
-  assert.equal(r.totalMoedas, 133);           // total no caixa
-  assert.equal(r.moedasDaSemana, 70);         // 133 − 63
-  assert.equal(r.saldoNaoExplicado, 0);       // −70 + 70 => explicado
-  assert.equal(r.dentroLimite, true);
+teste('suprimento não conta como receita (troco trazido do cofre)', () => {
+  const d = { aberturaCaixa1: 200, suprimentoCaixa1: 300, fechamentoCaixa1: 1500 };
+  assert.equal(entradaDinheiro(d), 1000);      // 1500 − 200 − 300
+});
+
+teste('sangria SOMA de volta (o dinheiro entrou; a saída vira despesa em Contas)', () => {
+  const d = { aberturaCaixa1: 200, sangriaCaixa1: 150, fechamentoCaixa1: 1050 };
+  assert.equal(entradaDinheiro(d), 1000);      // 1050 − 200 + 150
+});
+
+teste('suprimento e sangria juntos', () => {
+  const d = {
+    aberturaCaixa1: 200, suprimentoCaixa1: 300,
+    sangriaCaixa1: 150, fechamentoCaixa1: 1350,
+  };
+  assert.equal(entradaDinheiro(d), 1000);      // 1350 − 200 − 300 + 150
+});
+
+teste('faltou dinheiro: receita é o que entrou de fato, não o que o Microvix diz', () => {
+  // Microvix registrou 1000 de venda em dinheiro, mas só 950 estão no caixa.
+  const d = { aberturaCaixa1: 200, fechamentoCaixa1: 1150, microvixDinheiro: 1000 };
+  assert.equal(entradaDinheiro(d), 950);
+});
+
+teste('sobrou dinheiro: recebimento de conta antiga em espécie conta como receita', () => {
+  // Vendeu 1000 e recebeu 300 de um fiado antigo, tudo em dinheiro.
+  const d = { aberturaCaixa1: 200, fechamentoCaixa1: 1500, microvixDinheiro: 1000 };
+  assert.equal(entradaDinheiro(d), 1300);      // regime de caixa: entrou 1300
+});
+
+teste('fundo de caixa alto não infla a receita', () => {
+  const d = { aberturaCaixa1: 15000, fechamentoCaixa1: 40000 };
+  assert.equal(entradaDinheiro(d), 25000);     // não 40000
+});
+
+teste('dia sem movimento de dinheiro dá zero', () => {
+  assert.equal(entradaDinheiro({}), 0);
+});
+
+teste('receitaDoDia soma maquininhas + dinheiro que entrou', () => {
+  const d = {
+    ...maquininhasExemplo,                     // 2850 nas maquininhas
+    aberturaCaixa1: 200, fechamentoCaixa1: 1200,
+  };
+  assert.equal(receitaDoDia(d), 3850);         // 2850 + 1000
+});
+
+teste('receita bate com o faturamento quando o dia fecha certinho', () => {
+  // Sem pendência, sem ajuste, sem diferença: o que entrou = o que o Microvix registrou.
+  const d = {
+    microvixCredito: 500, microvixDebito: 300, microvixPix: 200, microvixDinheiro: 1000,
+    maq1Cartao: 500, maq2Cartao: 300, maq1Pix: 200,
+    aberturaCaixa1: 200, fechamentoCaixa1: 1200,
+  };
+  const faturamento = 500 + 300 + 200 + 1000;  // 2000 (Microvix)
+  assert.equal(receitaDoDia(d), faturamento);  // 1000 maquininhas + 1000 dinheiro
 });
 
 console.log(`\n${passou} testes passaram.`);

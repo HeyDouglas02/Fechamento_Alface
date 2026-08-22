@@ -85,6 +85,17 @@ function migrar() {
   if (!colunas.includes('numero_vendas')) {
     database.run('ALTER TABLE fechamentos ADD COLUMN numero_vendas INTEGER NOT NULL DEFAULT 0');
   }
+  if (!colunas.includes('ajustes_dinheiro')) {
+    database.run('ALTER TABLE fechamentos ADD COLUMN ajustes_dinheiro TEXT');
+  }
+  if (!colunas.includes('dinheiro_contado_ajustado')) {
+    database.run('ALTER TABLE fechamentos ADD COLUMN dinheiro_contado_ajustado REAL NOT NULL DEFAULT 0');
+  }
+
+  const colunasPendencias = all('PRAGMA table_info(pendencias)').map((c) => c.name);
+  if (!colunasPendencias.includes('forma_recebimento')) {
+    database.run('ALTER TABLE pendencias ADD COLUMN forma_recebimento TEXT');
+  }
 }
 
 // Cria as tabelas (idempotente) e garante a linha única de configurações.

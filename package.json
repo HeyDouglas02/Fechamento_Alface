@@ -1,6 +1,6 @@
 {
   "name": "fechamento-alface",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Sistema de fechamento de caixa — Alface & Melancia",
   "type": "module",
   "scripts": {
@@ -9,11 +9,16 @@
     "server": "node server/index.js",
     "start": "node server/index.js",
     "iniciar": "npm run build && node server/index.js",
-    "test": "node src/utils/calculos.test.js"
+    "test": "node src/utils/calculos.test.js",
+    "test:integracao": "node tests/integracao.test.mjs",
+    "diagnostico": "node tests/diagnostico.mjs"
   },
   "dependencies": {
     "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "googleapis": "^176.0.0",
+    "node-cron": "^4.6.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "sql.js": "^1.14.1"

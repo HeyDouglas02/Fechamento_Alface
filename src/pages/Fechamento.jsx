@@ -1,36 +1,15 @@
 // Fechamento — tela principal. Formulário do fechamento do dia com as seções
 // Microvix, Maquininhas, Dinheiro, Pendências e Observações, mostrando as duas
 // conferências (dinheiro e cartão/pix) em tempo real a partir de calculos.js.
-//
-// No SÁBADO aparece também a seção de moedas e o fechamento semanal: a diferença
-// de dinheiro de seg–sáb é acumulada e as moedas contadas explicam a falta.
 
 import { useEffect, useMemo, useState } from 'react';
 import CampoValor from '../components/CampoValor';
 import Conferencia from '../components/Conferencia';
 import RelatorioImpressao from '../components/RelatorioImpressao';
-import { conferenciaDinheiro, conferenciaCartaoPix, acumuladoSemanal } from '../utils/calculos';
+import { conferenciaDinheiro, conferenciaCartaoPix } from '../utils/calculos';
 import { montarRelatorio } from '../utils/relatorio';
 import { formatarData, formatarBRL, hojeISO } from '../utils/formatacao';
 import './Fechamento.css';
-
-// É sábado? (fechamento semanal de moedas)
-function ehSabado(dataISO) {
-  return new Date(`${dataISO}T12:00:00`).getDay() === 6;
-}
-
-// Segunda e sábado (ISO) da semana que contém a data informada.
-function semanaDe(dataISO) {
-  const d = new Date(`${dataISO}T12:00:00`);
-  const dow = d.getDay(); // 0=dom .. 6=sáb
-  const offsetSegunda = dow === 0 ? -6 : 1 - dow;
-  const segunda = new Date(d);
-  segunda.setDate(d.getDate() + offsetSegunda);
-  const sabado = new Date(segunda);
-  sabado.setDate(segunda.getDate() + 5);
-  const iso = (x) => x.toLocaleDateString('en-CA');
-  return { segunda: iso(segunda), sabado: iso(sabado) };
-}
 
 // Formulário em branco para abrir uma nova pendência.
 const PENDENCIA_VAZIA = { descricao: '', valor: 0, formaPagamento: '', previsaoPagamento: '' };
@@ -40,6 +19,9 @@ const SANGRIA_VAZIA = { caixa: 1, descricao: '', valor: 0 };
 
 // Ajuste de cartão/pix em branco (soma ou subtrai do real da maquininha).
 const AJUSTE_VAZIO = { tipo: 'subtrai', descricao: '', valor: 0 };
+
+// Recebimento de a prazo em branco (cliente com conta formal quitando fiado).
+const A_PRAZO_VAZIO = { descricao: '', valor: 0, formaRecebimento: 'cartao_pix' };
 
 // Estado inicial do formulário (todos os valores zerados).
 function estadoInicial(data) {
@@ -59,8 +41,7 @@ function estadoInicial(data) {
     desejadoCaixa1: 0, desejadoCaixa2: 0,
     sangrias: [],
     ajustesCartao: [],
-    // Sábado
-    moedasCaixa1: 0, moedasCaixa2: 0,
+    ajustesDinheiro: [],
   };
 }
 
@@ -76,7 +57,6 @@ const CAMPOS_FORM = [
   'suprimentoCaixa1', 'suprimentoCaixa2',
   'fechamentoCaixa1', 'fechamentoCaixa2',
   'desejadoCaixa1', 'desejadoCaixa2',
-  'moedasCaixa1', 'moedasCaixa2',
 ];
 
 export default function Fechamento({ alvoData = null, alvoToken = 0, usuario = null }) {
@@ -90,6 +70,12 @@ export default function Fechamento({ alvoData = null, alvoToken = 0, usuario = n
   const [pendenciasDia, setPendenciasDia] = useState([]);
   const [pendenciasAbertas, setPendenciasAbertas] = useState([]);
   const [novaPendencia, setNovaPendencia] = useState(PENDENCIA_VAZIA);
+  // Forma de recebimento escolhida por pendência, antes de confirmar "Receber".
+  const [formasRecebimento, setFormasRecebimento] = useState({});
+
+  // Recebimentos de a prazo do dia (cliente com conta formal quitando fiado).
+  const [aPrazoDia, setAPrazoDia] = useState([]);
+  const [novoAPrazo, setNovoAPrazo] = useState(A_PRAZO_VAZIO);
 
   // Lançamento de sangria em edição (antes de adicionar à lista do dia).
   const [novaSangria, setNovaSangria] = useState(SANGRIA_VAZIA);
@@ -97,20 +83,11 @@ export default function Fechamento({ alvoData = null, alvoToken = 0, usuario = n
   // Ajuste de cartão/pix em edição (soma ou subtrai do real da maquininha).
   const [novoAjuste, setNovoAjuste] = useState(AJUSTE_VAZIO);
 
+  // Ajuste de dinheiro em edição (soma ou subtrai do contado do caixa).
+  const [novoAjusteDinheiro, setNovoAjusteDinheiro] = useState(AJUSTE_VAZIO);
+
   // Texto do relatório para impressão (null = sem pré-visualização aberta).
   const [relatorio, setRelatorio] = useState(null);
-
-  // Fechamentos da semana (seg–sáb) — usados no acumulado de moedas do sábado.
-  const [fechamentosSemana, setFechamentosSemana] = useState([]);
-  // Total de moedas no caixa registrado no sábado anterior (as moedas não são
-  // retiradas; o que conta é o crescimento do estoque desde então).
-  const [moedasSemanaAnterior, setMoedasSemanaAnterior] = useState(0);
-  // É o PRIMEIRO sábado contado (não há sábado anterior no sistema)? Nesse caso o
-  // operador informa quanto de moeda já havia no caixa (a base), para as moedas
-  // pré-existentes não virarem uma "sobra" falsa.
-  const [primeiroSabado, setPrimeiroSabado] = useState(false);
-
-  const sabado = ehSabado(form.data);
 
   // Carrega as configurações uma vez (nomes das máquinas, fundo fixo, limite).
   useEffect(() => {
@@ -136,6 +113,7 @@ export default function Fechamento({ alvoData = null, alvoToken = 0, usuario = n
           carregado.observacoes = fech.observacoes ?? '';
           carregado.sangrias = Array.isArray(fech.sangrias) ? fech.sangrias : [];
           carregado.ajustesCartao = Array.isArray(fech.ajustesCartao) ? fech.ajustesCartao : [];
+          carregado.ajustesDinheiro = Array.isArray(fech.ajustesDinheiro) ? fech.ajustesDinheiro : [];
           setForm(carregado);
           setMensagem(`Fechamento de ${formatarData(fech.data)} carregado (${fech.status}).`);
         } else {
@@ -183,35 +161,18 @@ export default function Fechamento({ alvoData = null, alvoToken = 0, usuario = n
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.data]);
 
-  // No sábado, busca os fechamentos da semana (seg–sex) para acumular a
-  // diferença de dinheiro, e o total de moedas do sábado anterior (o estoque de
-  // moedas não é zerado entre semanas). O sábado atual entra ao vivo.
-  useEffect(() => {
-    if (!sabado) { setFechamentosSemana([]); setMoedasSemanaAnterior(0); setPrimeiroSabado(false); return; }
-    const { segunda, sabado: sab } = semanaDe(form.data);
-    fetch('/api/fechamentos')
+  // Carrega os recebimentos de a prazo do dia.
+  function carregarAPrazo() {
+    fetch(`/api/a-prazo?data=${form.data}`)
       .then((r) => r.json())
-      .then((lista) => {
-        setFechamentosSemana(
-          lista.filter((f) => f.data >= segunda && f.data <= sab && f.data !== form.data)
-        );
-        // Sábado anterior = fechamento de sábado mais recente antes deste dia.
-        const sabadosAnteriores = lista
-          .filter((f) => f.diaSemana === 'sabado' && f.data < form.data)
-          .sort((a, b) => (a.data < b.data ? 1 : -1));
-        const ant = sabadosAnteriores[0];
-        if (ant) {
-          setPrimeiroSabado(false);
-          setMoedasSemanaAnterior((Number(ant.moedasCaixa1) || 0) + (Number(ant.moedasCaixa2) || 0));
-        } else {
-          // Primeiro sábado: o operador informa a base (campo editável).
-          setPrimeiroSabado(true);
-          setMoedasSemanaAnterior(0);
-        }
-      })
-      .catch(() => { setFechamentosSemana([]); setMoedasSemanaAnterior(0); setPrimeiroSabado(false); });
+      .then(setAPrazoDia)
+      .catch(() => setAPrazoDia([]));
+  }
+
+  useEffect(() => {
+    carregarAPrazo();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.data, sabado]);
+  }, [form.data]);
 
   // Quando o Histórico pede para abrir um dia (alvoToken muda), carrega essa data.
   useEffect(() => {
@@ -284,16 +245,54 @@ export default function Fechamento({ alvoData = null, alvoToken = 0, usuario = n
     [form.ajustesCartao]
   );
 
-  // Somas das pendências do dia que entram na conferência (ambas subtraem).
+  // Ajustes de dinheiro — mesma mecânica, do lado do caixa.
+  function adicionarAjusteDinheiro(e) {
+    e.preventDefault();
+    if (!novoAjusteDinheiro.descricao.trim()) {
+      setMensagem('Informe a descrição do ajuste.');
+      return;
+    }
+    setForm((f) => ({
+      ...f,
+      ajustesDinheiro: [...(f.ajustesDinheiro || []), {
+        tipo: novoAjusteDinheiro.tipo === 'soma' ? 'soma' : 'subtrai',
+        descricao: novoAjusteDinheiro.descricao.trim(),
+        valor: Number(novoAjusteDinheiro.valor) || 0,
+      }],
+    }));
+    setNovoAjusteDinheiro(AJUSTE_VAZIO);
+  }
+
+  function removerAjusteDinheiro(indice) {
+    setForm((f) => ({ ...f, ajustesDinheiro: (f.ajustesDinheiro || []).filter((_, i) => i !== indice) }));
+  }
+
+  const somaAjustesDinheiro = useMemo(
+    () => (form.ajustesDinheiro || []).reduce(
+      (a, x) => a + (x.tipo === 'soma' ? (Number(x.valor) || 0) : -(Number(x.valor) || 0)), 0
+    ),
+    [form.ajustesDinheiro]
+  );
+
+  // Soma das pendências abertas hoje (soma de volta no cartão/pix — a venda já
+  // está no Microvix, só não passou na maquininha ainda).
   const somaAbertasHoje = useMemo(
     () => pendenciasDia
       .filter((p) => p.dataAbertura === form.data)
       .reduce((acc, p) => acc + (Number(p.valor) || 0), 0),
     [pendenciasDia, form.data]
   );
-  const somaRecebidasHoje = useMemo(
+
+  // Recebidas hoje, separadas por forma (cada uma subtrai do lado que recebeu).
+  const somaRecebidasCartaoHoje = useMemo(
     () => pendenciasDia
-      .filter((p) => p.dataRecebimento === form.data)
+      .filter((p) => p.dataRecebimento === form.data && p.formaRecebimento !== 'dinheiro')
+      .reduce((acc, p) => acc + (Number(p.valor) || 0), 0),
+    [pendenciasDia, form.data]
+  );
+  const somaRecebidasDinheiroHoje = useMemo(
+    () => pendenciasDia
+      .filter((p) => p.dataRecebimento === form.data && p.formaRecebimento === 'dinheiro')
       .reduce((acc, p) => acc + (Number(p.valor) || 0), 0),
     [pendenciasDia, form.data]
   );
@@ -320,13 +319,15 @@ export default function Fechamento({ alvoData = null, alvoToken = 0, usuario = n
     }
   }
 
-  // Marca uma pendência aberta como recebida no dia do fechamento.
+  // Marca uma pendência aberta como recebida no dia do fechamento, na forma
+  // escolhida (cartão/pix ou dinheiro — decide em qual conferência ela entra).
   async function receberPendencia(id) {
+    const formaRecebimento = formasRecebimento[id] || 'cartao_pix';
     try {
       const res = await fetch(`/api/pendencias/${id}/receber`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dataRecebimento: form.data }),
+        body: JSON.stringify({ dataRecebimento: form.data, formaRecebimento }),
       });
       if (!res.ok) throw new Error();
       setMensagem('Pendência recebida.');
@@ -349,7 +350,8 @@ export default function Fechamento({ alvoData = null, alvoToken = 0, usuario = n
   }
 
   // Exclui uma pendência (lançada por engano).
-  async function excluirPendencia(id) {
+  async function excluirPendencia(id, descricao) {
+    if (!window.confirm(`Excluir a pendência "${descricao}"? Essa ação não pode ser desfeita.`)) return;
     try {
       const res = await fetch(`/api/pendencias/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error();
@@ -360,6 +362,52 @@ export default function Fechamento({ alvoData = null, alvoToken = 0, usuario = n
     }
   }
 
+  // Registra um recebimento de a prazo (cliente quitou o fiado hoje).
+  async function adicionarAPrazo(e) {
+    e.preventDefault();
+    if (!novoAPrazo.valor || Number(novoAPrazo.valor) <= 0) {
+      setMensagem('Informe o valor recebido.');
+      return;
+    }
+    try {
+      const res = await fetch('/api/a-prazo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...novoAPrazo, data: form.data, usuarioId: usuario?.id ?? null }),
+      });
+      if (!res.ok) throw new Error();
+      setNovoAPrazo(A_PRAZO_VAZIO);
+      setMensagem('Recebimento de a prazo registrado.');
+      carregarAPrazo();
+    } catch {
+      setMensagem('Erro ao registrar o recebimento de a prazo.');
+    }
+  }
+
+  // Exclui um recebimento de a prazo (lançado por engano).
+  async function excluirAPrazo(id, descricao) {
+    if (!window.confirm(`Excluir o recebimento "${descricao || 'a prazo'}"? Essa ação não pode ser desfeita.`)) return;
+    try {
+      const res = await fetch(`/api/a-prazo/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error();
+      setMensagem('Recebimento de a prazo excluído.');
+      carregarAPrazo();
+    } catch {
+      setMensagem('Erro ao excluir o recebimento de a prazo.');
+    }
+  }
+
+  // Somas dos recebimentos de a prazo do dia, por forma (entram como ajuste,
+  // sempre subtraindo do lado que recebeu).
+  const somaAPrazoDinheiroHoje = useMemo(
+    () => aPrazoDia.filter((r) => r.formaRecebimento === 'dinheiro').reduce((a, r) => a + (Number(r.valor) || 0), 0),
+    [aPrazoDia]
+  );
+  const somaAPrazoCartaoHoje = useMemo(
+    () => aPrazoDia.filter((r) => r.formaRecebimento === 'cartao_pix').reduce((a, r) => a + (Number(r.valor) || 0), 0),
+    [aPrazoDia]
+  );
+
   // Conferência do dinheiro em tempo real (fluxo por caixa).
   const confDinheiro = useMemo(
     () => conferenciaDinheiro({
@@ -369,12 +417,13 @@ export default function Fechamento({ alvoData = null, alvoToken = 0, usuario = n
       desejadoCaixa1: form.desejadoCaixa1, desejadoCaixa2: form.desejadoCaixa2,
       sangriaCaixa1: somaSangria1, sangriaCaixa2: somaSangria2,
       microvixDinheiro: form.microvixDinheiro,
+      ajustesDinheiro: somaAjustesDinheiro - somaAPrazoDinheiroHoje - somaRecebidasDinheiroHoje,
       limiteDiferencaMoeda: config?.limiteDiferencaMoeda ?? 0,
     }),
-    [form, config, somaSangria1, somaSangria2]
+    [form, config, somaSangria1, somaSangria2, somaAjustesDinheiro, somaAPrazoDinheiroHoje, somaRecebidasDinheiroHoje]
   );
 
-  // Conferência de cartão/pix em tempo real (pendências entram nos próximos passos).
+  // Conferência de cartão/pix em tempo real.
   const confCartao = useMemo(
     () => conferenciaCartaoPix({
       microvixCredito: form.microvixCredito,
@@ -387,25 +436,11 @@ export default function Fechamento({ alvoData = null, alvoToken = 0, usuario = n
       maq4Cartao: form.maq4Cartao, maq4Pix: form.maq4Pix,
       pixChaveDireta: form.pixChaveDireta,
       pendenciasAbertas: somaAbertasHoje,
-      pendenciasRecebidas: somaRecebidasHoje,
-      ajustesCartao: somaAjustes,
+      pendenciasRecebidas: somaRecebidasCartaoHoje,
+      ajustesCartao: somaAjustes - somaAPrazoCartaoHoje,
     }),
-    [form, somaAbertasHoje, somaRecebidasHoje, somaAjustes]
+    [form, somaAbertasHoje, somaRecebidasCartaoHoje, somaAjustes, somaAPrazoCartaoHoje]
   );
-
-  // Acumulado semanal de moedas (só no sábado): soma as diferenças de dinheiro
-  // de seg–sex (fechamentos salvos) + a do próprio sábado (ao vivo).
-  const acumulado = useMemo(() => {
-    if (!sabado) return null;
-    const difsSemana = fechamentosSemana.map((f) => Number(f.diferencaDinheiro) || 0);
-    return acumuladoSemanal({
-      diferencasDinheiro: [...difsSemana, confDinheiro.diferencaDinheiro],
-      moedasCaixa1: form.moedasCaixa1,
-      moedasCaixa2: form.moedasCaixa2,
-      moedasSemanaAnterior,
-      limiteDiferencaMoeda: config?.limiteDiferencaMoeda ?? 0,
-    });
-  }, [sabado, fechamentosSemana, confDinheiro.diferencaDinheiro, form.moedasCaixa1, form.moedasCaixa2, moedasSemanaAnterior, config]);
 
   async function salvar(status) {
     setSalvando(true);
@@ -442,14 +477,11 @@ export default function Fechamento({ alvoData = null, alvoToken = 0, usuario = n
         confDinheiro,
         confCartao,
         pendenciasDia,
-        acumulado,
-        primeiroSabado,
+        aPrazoDia,
         operador: usuario?.nome || '',
       })
     );
   }
-
-  const nome = (i, padrao) => config?.[`nomeMaquina${i}`] || padrao;
 
   return (
     <div className="fechamento">
@@ -495,8 +527,8 @@ export default function Fechamento({ alvoData = null, alvoToken = 0, usuario = n
             <h2><span aria-hidden="true">💳</span> Maquininhas</h2>
             {[1, 2, 3, 4].map((i) => (
               <div className="secao__par" key={i}>
-                <CampoValor id={`maq${i}-cartao`} label={`${nome(i, `Máquina ${i}`)} cartão`} value={form[`maq${i}Cartao`]} onChange={(v) => setCampo(`maq${i}Cartao`, v)} />
-                <CampoValor id={`maq${i}-pix`} label={`${nome(i, `Máquina ${i}`)} pix`} value={form[`maq${i}Pix`]} onChange={(v) => setCampo(`maq${i}Pix`, v)} />
+                <CampoValor id={`maq${i}-cartao`} label={`Máquina ${i} cartão`} value={form[`maq${i}Cartao`]} onChange={(v) => setCampo(`maq${i}Cartao`, v)} />
+                <CampoValor id={`maq${i}-pix`} label={`Máquina ${i} pix`} value={form[`maq${i}Pix`]} onChange={(v) => setCampo(`maq${i}Pix`, v)} />
               </div>
             ))}
             <CampoValor id="pix-direta" label="Pix chave direta" value={form.pixChaveDireta} onChange={(v) => setCampo('pixChaveDireta', v)} />
@@ -601,37 +633,92 @@ export default function Fechamento({ alvoData = null, alvoToken = 0, usuario = n
                 ))}
               </div>
             )}
+
+            {/* Ajustes de dinheiro — dinheiro que entrou/saiu do caixa mas não é
+                venda de hoje (ex.: recebimento de a prazo/pendência em espécie). */}
+            <h3 className="sangria-titulo">Ajustes (dinheiro que não é venda de hoje)</h3>
+            <form className="sangria-form" onSubmit={adicionarAjusteDinheiro}>
+              <select
+                value={novoAjusteDinheiro.tipo}
+                onChange={(e) => setNovoAjusteDinheiro((a) => ({ ...a, tipo: e.target.value }))}
+              >
+                <option value="subtrai">Subtrai (−)</option>
+                <option value="soma">Soma (+)</option>
+              </select>
+              <input
+                type="text"
+                placeholder="Descrição (ex.: recebimento a prazo em dinheiro)"
+                value={novoAjusteDinheiro.descricao}
+                onChange={(e) => setNovoAjusteDinheiro((a) => ({ ...a, descricao: e.target.value }))}
+              />
+              <input
+                type="number"
+                step="0.01"
+                placeholder="Valor"
+                value={novoAjusteDinheiro.valor || ''}
+                onChange={(e) => setNovoAjusteDinheiro((a) => ({ ...a, valor: e.target.value }))}
+              />
+              <button type="submit">+ Adicionar</button>
+            </form>
+
+            {(form.ajustesDinheiro || []).length > 0 && (
+              <div className="pendencia-lista">
+                {form.ajustesDinheiro.map((a, i) => (
+                  <div className="pendencia-item" key={i}>
+                    <span>{a.tipo === 'soma' ? '(+)' : '(−)'} {a.descricao}</span>
+                    <strong>{formatarBRL(a.valor)}</strong>
+                    <button type="button" onClick={() => removerAjusteDinheiro(i)} title="Excluir">✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
 
-          {sabado && (
-            <section className="secao">
-              <h2><span aria-hidden="true">🪙</span> Moedas — fechamento semanal (sábado)</h2>
-              <p className="secao__ajuda">
-                Conte <strong>todas</strong> as moedas no caixa (o sistema usa o crescimento
-                desde o sábado anterior).
-              </p>
-              <div className="secao__par">
-                <CampoValor id="moedas-1" label="Moedas caixa 1 (total no caixa)" value={form.moedasCaixa1} onChange={(v) => setCampo('moedasCaixa1', v)} />
-                <CampoValor id="moedas-2" label="Moedas caixa 2 (total no caixa)" value={form.moedasCaixa2} onChange={(v) => setCampo('moedasCaixa2', v)} />
-              </div>
+          <section className="secao">
+            <h2><span aria-hidden="true">🧾</span> A prazo — recebimento</h2>
+            <p className="secao__ajuda">
+              Cliente com conta formal (fiado) quitando compra antiga. A venda já está em
+              "A prazo" no Microvix desde o dia dela — aqui só se registra o <strong>recebimento</strong>,
+              que entra sem bater com nada do Microvix de hoje.
+            </p>
+            <form className="pendencia-form" onSubmit={adicionarAPrazo}>
+              <input
+                type="text"
+                placeholder="Descrição (ex.: Maria — quitou conta)"
+                value={novoAPrazo.descricao}
+                onChange={(e) => setNovoAPrazo((p) => ({ ...p, descricao: e.target.value }))}
+              />
+              <input
+                type="number"
+                step="0.01"
+                placeholder="Valor"
+                value={novoAPrazo.valor || ''}
+                onChange={(e) => setNovoAPrazo((p) => ({ ...p, valor: e.target.value }))}
+              />
+              <select
+                value={novoAPrazo.formaRecebimento}
+                onChange={(e) => setNovoAPrazo((p) => ({ ...p, formaRecebimento: e.target.value }))}
+              >
+                <option value="cartao_pix">Cartão/pix</option>
+                <option value="dinheiro">Dinheiro</option>
+              </select>
+              <button type="submit">+ Registrar</button>
+            </form>
 
-              {primeiroSabado && (
-                <>
-                  <p className="secao__ajuda" style={{ marginTop: '0.8rem' }}>
-                    <strong>Primeiro sábado:</strong> informe quanto de moeda <strong>já havia</strong> no
-                    caixa antes de começar a usar o sistema, para essas moedas antigas não virarem
-                    uma sobra falsa. (Depois disso, fica automático.)
-                  </p>
-                  <CampoValor
-                    id="moedas-base"
-                    label="Moedas que já havia (base, caixa 1 + 2)"
-                    value={moedasSemanaAnterior}
-                    onChange={(v) => setMoedasSemanaAnterior(v)}
-                  />
-                </>
-              )}
-            </section>
-          )}
+            {aPrazoDia.length > 0 && (
+              <div className="pendencia-lista">
+                {aPrazoDia.map((r) => (
+                  <div className="pendencia-item" key={r.id}>
+                    <span>
+                      {r.descricao || 'A prazo'} · {r.formaRecebimento === 'dinheiro' ? 'dinheiro' : 'cartão/pix'}
+                    </span>
+                    <strong>{formatarBRL(r.valor)}</strong>
+                    <button type="button" onClick={() => excluirAPrazo(r.id, r.descricao)} title="Excluir">✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
 
           <section className="secao">
             <h2><span aria-hidden="true">📌</span> Pendências</h2>
@@ -671,7 +758,7 @@ export default function Fechamento({ alvoData = null, alvoToken = 0, usuario = n
                       <span>{p.descricao}{p.formaPagamento ? ` · ${p.formaPagamento}` : ''}</span>
                       <strong>{formatarBRL(p.valor)}</strong>
                       {p.status === 'aberta' && (
-                        <button type="button" onClick={() => excluirPendencia(p.id)} title="Excluir">✕</button>
+                        <button type="button" onClick={() => excluirPendencia(p.id, p.descricao)} title="Excluir">✕</button>
                       )}
                     </div>
                   ))}
@@ -686,8 +773,15 @@ export default function Fechamento({ alvoData = null, alvoToken = 0, usuario = n
                   <div className="pendencia-item" key={p.id}>
                     <span>{p.descricao} · {formatarData(p.dataAbertura)}</span>
                     <strong>{formatarBRL(p.valor)}</strong>
+                    <select
+                      value={formasRecebimento[p.id] || 'cartao_pix'}
+                      onChange={(e) => setFormasRecebimento((f) => ({ ...f, [p.id]: e.target.value }))}
+                    >
+                      <option value="cartao_pix">Cartão/pix</option>
+                      <option value="dinheiro">Dinheiro</option>
+                    </select>
                     <button type="button" onClick={() => receberPendencia(p.id)}>Receber</button>
-                    <button type="button" onClick={() => excluirPendencia(p.id)} title="Excluir">✕</button>
+                    <button type="button" onClick={() => excluirPendencia(p.id, p.descricao)} title="Excluir">✕</button>
                   </div>
                 ))}
               </div>
@@ -701,7 +795,10 @@ export default function Fechamento({ alvoData = null, alvoToken = 0, usuario = n
                   .filter((p) => p.dataRecebimento === form.data)
                   .map((p) => (
                     <div className="pendencia-item" key={p.id}>
-                      <span>{p.descricao} · aberta em {formatarData(p.dataAbertura)}</span>
+                      <span>
+                        {p.descricao} · aberta em {formatarData(p.dataAbertura)} ·{' '}
+                        {p.formaRecebimento === 'dinheiro' ? 'dinheiro' : 'cartão/pix'}
+                      </span>
                       <strong>{formatarBRL(p.valor)}</strong>
                       <button type="button" onClick={() => estornarPendencia(p.id)}>Estornar</button>
                     </div>
@@ -731,6 +828,12 @@ export default function Fechamento({ alvoData = null, alvoToken = 0, usuario = n
               { label: '(−) Sangrias', valor: confDinheiro.totalSangria },
               { label: 'Esperado (c/ Microvix)', valor: confDinheiro.dinheiroEsperado },
               { label: 'Contado (fechamento)', valor: confDinheiro.dinheiroContado },
+              ...(confDinheiro.ajustesDinheiro
+                ? [
+                    { label: 'Ajustes', valor: confDinheiro.ajustesDinheiro },
+                    { label: 'Contado ajustado', valor: confDinheiro.dinheiroContadoAjustado },
+                  ]
+                : []),
             ]}
             resultado={{ label: 'Diferença', valor: confDinheiro.diferencaDinheiro }}
             alerta={confDinheiro.provavelMoeda ? 'Provável troco em moeda' : ''}
@@ -761,20 +864,6 @@ export default function Fechamento({ alvoData = null, alvoToken = 0, usuario = n
             resultado={{ label: 'Diferença', valor: confCartao.diferencaCartaoPix }}
             alerta={confCartao.diferencaCartaoPix !== 0 ? 'Atenção: diferença a investigar' : ''}
           />
-          {sabado && acumulado && (
-            <Conferencia
-              titulo="Fechamento semanal — Moedas"
-              linhas={[
-                { label: 'Dif. acumulada (semana)', valor: acumulado.acumulado },
-                { label: 'Moedas no caixa (total)', valor: acumulado.totalMoedas },
-                { label: primeiroSabado ? 'Base inicial' : 'Sábado anterior', valor: acumulado.moedasSemanaAnterior },
-                { label: 'Moedas desta semana', valor: acumulado.moedasDaSemana },
-              ]}
-              resultado={{ label: 'Saldo não explicado', valor: acumulado.saldoNaoExplicado }}
-              alerta={acumulado.dentroLimite ? 'Dentro do limite (explicado por moeda)' : 'Saldo a investigar'}
-            />
-          )}
-
           <div className="fechamento__acoes">
             <button type="button" onClick={() => salvar('rascunho')} disabled={salvando}>
               Salvar rascunho

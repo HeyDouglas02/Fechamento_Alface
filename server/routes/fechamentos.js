@@ -6,7 +6,7 @@
 // desejado). As sangrias vão como lista JSON na coluna `sangrias`.
 
 import express from 'express';
-import { calcularFechamento } from '../../src/utils/calculos.js';
+import { calcularFechamento, arredondar } from '../../src/utils/calculos.js';
 
 const router = express.Router();
 
@@ -30,13 +30,13 @@ const COLS_VALOR = [
   ['suprimento_caixa_1', 'suprimentoCaixa1'], ['suprimento_caixa_2', 'suprimentoCaixa2'],
   ['fechamento_caixa_1', 'fechamentoCaixa1'], ['fechamento_caixa_2', 'fechamentoCaixa2'],
   ['desejado_caixa_1', 'desejadoCaixa1'], ['desejado_caixa_2', 'desejadoCaixa2'],
-  ['moedas_caixa_1', 'moedasCaixa1'], ['moedas_caixa_2', 'moedasCaixa2'],
 ];
 
 const COLS_CALC = [
   ['total_maquininhas', 'totalRealMaquininhas'],
   ['total_maquininhas_microvix', 'totalMicrovixCartaoPix'],
   ['dinheiro_esperado', 'dinheiroEsperado'],
+  ['dinheiro_contado_ajustado', 'dinheiroContadoAjustado'],
   ['sangria_caixa_1', 'sangriaCaixa1'],
   ['sangria_caixa_2', 'sangriaCaixa2'],
   ['retirar_caixa_1', 'retirarCaixa1'],
@@ -147,6 +147,7 @@ function rowParaApi(row) {
     observacoes: row.observacoes,
     sangrias: parseSangrias(row.sangrias),
     ajustesCartao: parseSangrias(row.ajustes_cartao),
+    ajustesDinheiro: parseSangrias(row.ajustes_dinheiro),
     criadoEm: row.criado_em,
     editadoEm: row.editado_em,
   };
@@ -214,27 +215,55 @@ router.post('/', (req, res) => {
   const ajustes = sanearAjustes(body.ajustesCartao);
   const ajustesCartao = ajustes.reduce((a, x) => a + (x.tipo === 'soma' ? x.valor : -x.valor), 0);
 
-  // Pendências do dia (vínculo por data): abertas neste dia e recebidas neste
-  // dia ambas SUBTRAEM da conferência de cartão/pix. Lidas do banco para o
-  // cálculo gravado refletir o estado real, não o que a tela enviou.
+  // Ajustes de dinheiro (mesmo formato, mesma mecânica, do lado do caixa).
+  const ajustesDinheiroLista = sanearAjustes(body.ajustesDinheiro);
+  const ajustesDinheiro = ajustesDinheiroLista.reduce((a, x) => a + (x.tipo === 'soma' ? x.valor : -x.valor), 0);
+
+  // Pendências do dia (vínculo por data). Abertura SOMA de volta no cartão/pix
+  // (a venda já está lá, só não passou na maquininha ainda). Recebimento
+  // SUBTRAI do lado que efetivamente recebeu — cartão/pix ou dinheiro, conforme
+  // a forma escolhida na hora (pendências antigas sem forma gravada contam como
+  // cartão/pix, comportamento de antes desta coluna existir). Lidas do banco
+  // para o cálculo gravado refletir o estado real, não o que a tela enviou.
   const pAbertas = db.get(
     "SELECT COALESCE(SUM(valor), 0) AS s FROM pendencias WHERE data_abertura = ?",
     [body.data]
   );
-  const pRecebidas = db.get(
-    "SELECT COALESCE(SUM(valor), 0) AS s FROM pendencias WHERE data_recebimento = ?",
+  const pRecebidasCartao = db.get(
+    "SELECT COALESCE(SUM(valor), 0) AS s FROM pendencias WHERE data_recebimento = ? AND COALESCE(forma_recebimento, 'cartao_pix') = 'cartao_pix'",
+    [body.data]
+  );
+  const pRecebidasDinheiro = db.get(
+    "SELECT COALESCE(SUM(valor), 0) AS s FROM pendencias WHERE data_recebimento = ? AND forma_recebimento = 'dinheiro'",
     [body.data]
   );
 
-  // Recalcula os derivados, já com sangrias e pendências do dia.
+  // Recebimentos de a prazo do dia, por forma (dinheiro | cartao_pix). Sempre
+  // SUBTRAEM do lado que recebeu — a grana entrou sem bater com o Microvix de
+  // hoje (a venda já foi contada em microvix_a_prazo lá no dia da venda).
+  const aPrazoDinheiro = db.get(
+    "SELECT COALESCE(SUM(valor), 0) AS s FROM a_prazo_recebimentos WHERE data = ? AND forma_recebimento = 'dinheiro'",
+    [body.data]
+  );
+  const aPrazoCartao = db.get(
+    "SELECT COALESCE(SUM(valor), 0) AS s FROM a_prazo_recebimentos WHERE data = ? AND forma_recebimento = 'cartao_pix'",
+    [body.data]
+  );
+  const ajustesCartaoTotal = arredondar(ajustesCartao - num(aPrazoCartao?.s));
+  const ajustesDinheiroTotal = arredondar(
+    ajustesDinheiro - num(aPrazoDinheiro?.s) - num(pRecebidasDinheiro?.s)
+  );
+
+  // Recalcula os derivados, já com sangrias, pendências e a prazo do dia.
   const calc = calcularFechamento({
     ...valores,
     sangriaCaixa1,
     sangriaCaixa2,
-    ajustesCartao,
+    ajustesCartao: ajustesCartaoTotal,
+    ajustesDinheiro: ajustesDinheiroTotal,
     limiteDiferencaMoeda: num(config.limite_diferenca_moeda),
     pendenciasAbertas: num(pAbertas?.s),
-    pendenciasRecebidas: num(pRecebidas?.s),
+    pendenciasRecebidas: num(pRecebidasCartao?.s),
   });
 
   // Monta o conjunto completo de colunas a gravar.
@@ -246,6 +275,7 @@ router.post('/', (req, res) => {
     observacoes: body.observacoes ?? null,
     sangrias: JSON.stringify(sangrias),
     ajustes_cartao: JSON.stringify(ajustes),
+    ajustes_dinheiro: JSON.stringify(ajustesDinheiroLista),
   };
   for (const [col, key] of COLS_VALOR) colunas[col] = valores[key];
   for (const [col, key] of COLS_CALC) colunas[col] = num(calc[key]);

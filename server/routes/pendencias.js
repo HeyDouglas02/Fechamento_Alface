@@ -30,6 +30,7 @@ function rowParaApi(row) {
     previsaoPagamento: row.previsao_pagamento,
     dataRecebimento: row.data_recebimento,
     fechamentoRecebimentoId: row.fechamento_recebimento_id,
+    formaRecebimento: row.forma_recebimento,
     status: row.status,
     usuarioId: row.usuario_id,
     criadoEm: row.criado_em,
@@ -100,13 +101,18 @@ router.post('/', (req, res) => {
 });
 
 // POST /api/pendencias/:id/receber — marca como recebida num dia.
-//   body: { dataRecebimento, fechamentoRecebimentoId? }
+//   body: { dataRecebimento, formaRecebimento (dinheiro|cartao_pix), fechamentoRecebimentoId? }
+// A forma decide em qual conferência o recebimento entra como ajuste (subtrai)
+// no dia — não dá pra saber de antemão como o cliente vai pagar.
 router.post('/:id/receber', (req, res) => {
   const db = req.app.locals.db;
   const body = req.body || {};
 
   if (!body.dataRecebimento) {
     return res.status(400).json({ erro: 'Campo "dataRecebimento" é obrigatório' });
+  }
+  if (body.formaRecebimento !== 'dinheiro' && body.formaRecebimento !== 'cartao_pix') {
+    return res.status(400).json({ erro: 'Campo "formaRecebimento" deve ser dinheiro ou cartao_pix.' });
   }
 
   const atual = db.get('SELECT * FROM pendencias WHERE id = ?', [req.params.id]);
@@ -117,9 +123,9 @@ router.post('/:id/receber', (req, res) => {
 
   db.run(
     `UPDATE pendencias
-       SET status = 'recebida', data_recebimento = ?, fechamento_recebimento_id = ?
+       SET status = 'recebida', data_recebimento = ?, forma_recebimento = ?, fechamento_recebimento_id = ?
      WHERE id = ?`,
-    [body.dataRecebimento, body.fechamentoRecebimentoId ?? null, req.params.id]
+    [body.dataRecebimento, body.formaRecebimento, body.fechamentoRecebimentoId ?? null, req.params.id]
   );
 
   const salvo = db.get('SELECT * FROM pendencias WHERE id = ?', [req.params.id]);
@@ -134,7 +140,7 @@ router.post('/:id/estornar', (req, res) => {
 
   db.run(
     `UPDATE pendencias
-       SET status = 'aberta', data_recebimento = NULL, fechamento_recebimento_id = NULL
+       SET status = 'aberta', data_recebimento = NULL, forma_recebimento = NULL, fechamento_recebimento_id = NULL
      WHERE id = ?`,
     [req.params.id]
   );

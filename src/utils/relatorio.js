@@ -22,23 +22,16 @@ function linha(rotulo, valor, sinal = false) {
   return rotulo + ' '.repeat(espacos) + dir;
 }
 
-// É sábado? (fechamento semanal de moedas)
-function ehSabado(dataISO) {
-  return new Date(`${dataISO}T12:00:00`).getDay() === 6;
-}
-
 export function montarRelatorio({
   data,
   form,
-  config,
   confDinheiro,
   confCartao,
   pendenciasDia = [],
-  acumulado = null,
-  primeiroSabado = false,
+  aPrazoDia = [],
   operador = '',
 }) {
-  const nomeMaq = (i) => config?.[`nomeMaquina${i}`] || `Máquina ${i}`;
+  const nomeMaq = (i) => `Máquina ${i}`;
   const L = []; // linhas
 
   L.push(`FECHAMENTO DO DIA - ${formatarData(data)}`);
@@ -113,6 +106,10 @@ export function montarRelatorio({
   L.push('CONFERÊNCIA - DINHEIRO');
   L.push(linha('Esperado:', confDinheiro.dinheiroEsperado));
   L.push(linha('Contado:', confDinheiro.dinheiroContado));
+  if (confDinheiro.ajustesDinheiro) {
+    L.push(linha('Ajustes:', confDinheiro.ajustesDinheiro));
+    L.push(linha('Contado ajustado:', confDinheiro.dinheiroContadoAjustado));
+  }
   L.push(SEP);
 
   // --- Diferenças (resumo final) ---
@@ -152,18 +149,13 @@ export function montarRelatorio({
     L.push(SEP);
   }
 
-  // --- Sábado: fechamento semanal de moedas ---
-  if (ehSabado(data) && acumulado) {
-    L.push('FECHAMENTO SEMANAL - MOEDAS');
-    L.push(linha('Moedas caixa 1:', form.moedasCaixa1));
-    L.push(linha('Moedas caixa 2:', form.moedasCaixa2));
-    L.push(linha('Total no caixa:', acumulado.totalMoedas));
-    // No primeiro sábado o valor anterior é a base que já havia (não um sábado real).
-    L.push(linha(primeiroSabado ? 'Base inicial:' : 'Sábado anterior:', acumulado.moedasSemanaAnterior, true));
-    L.push(linha('Moedas da semana:', acumulado.moedasDaSemana));
-    L.push(linha('Dif. acumulada:', acumulado.acumulado));
-    const saldo = acumulado.saldoNaoExplicado;
-    L.push(`${linha('Saldo não explic.:', saldo)}${acumulado.dentroLimite ? '' : ' (atencao)'}`);
+  // --- A prazo recebido hoje ---
+  if (aPrazoDia.length) {
+    L.push('A PRAZO RECEBIDO HOJE');
+    for (const r of aPrazoDia) {
+      const forma = r.formaRecebimento === 'dinheiro' ? 'dinheiro' : 'cartão/pix';
+      L.push(`- ${r.descricao || 'A prazo'} ${formatarBRL(r.valor)} (${forma})`);
+    }
     L.push(SEP);
   }
 

@@ -311,6 +311,14 @@
   margin-bottom: 0.5rem;
 }
 
+.pendencia-form select {
+  padding: 0.45rem 0.5rem;
+  border: 1px solid var(--borda-forte);
+  border-radius: var(--raio-sm);
+  background: var(--superficie);
+  font-size: 0.9rem;
+}
+
 .pendencia-form button {
   padding: 0 0.9rem;
   border: 1px solid var(--verde);
@@ -353,6 +361,15 @@
 
 .pendencia-item strong {
   font-variant-numeric: tabular-nums;
+  color: var(--texto);
+}
+
+.pendencia-item select {
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--borda-forte);
+  background: var(--superficie);
+  border-radius: var(--raio-sm);
+  font-size: 0.82rem;
   color: var(--texto);
 }
 
