@@ -7,7 +7,6 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { formatarBRL, formatarData } from '../utils/formatacao';
-import { receitaDoDia } from '../utils/calculos';
 
 const n = (x) => Number(x) || 0;
 
@@ -47,6 +46,7 @@ const mesAnteriorDe = (iso) => {
 
 const CORES_PAG = {
   credito: '#2f7d32', debito: '#43a83a', voucher: '#9fc23a', pix: '#2f9e9e', dinheiro: '#c9a227',
+  aPrazo: '#b7791f', ifood: '#d8362b',
 };
 
 export default function PainelReceitas() {
@@ -105,17 +105,16 @@ export default function PainelReceitas() {
     const fatTotal = lista.reduce((s, f) => s + faturamento(f), 0);
     const totalVendas = lista.reduce((s, f) => s + n(f.numeroVendas), 0);
     const difCaixa = lista.reduce((s, f) => s + n(f.diferencaDinheiro) + n(f.diferencaCartaoPix), 0);
-    // Dinheiro que realmente entrou — mesma fórmula do DRE (calculos.js), pra
-    // os dois números nunca divergirem.
-    const recebido = lista.reduce((s, f) => s + receitaDoDia(f), 0);
 
-    const comp = { credito: 0, debito: 0, voucher: 0, pix: 0, dinheiro: 0 };
-    let aPrazo = 0, ifood = 0;
+    // Composição por forma de pagamento — inclui a prazo e iFood pra somar
+    // exatamente o faturamento (senão as porcentagens ficariam sobre um total
+    // menor que o número grande mostrado em cima).
+    const comp = { credito: 0, debito: 0, voucher: 0, pix: 0, dinheiro: 0, aPrazo: 0, ifood: 0 };
     for (const f of lista) {
       comp.credito += n(f.microvixCredito); comp.debito += n(f.microvixDebito);
       comp.voucher += n(f.microvixVoucher); comp.pix += n(f.microvixPix);
       comp.dinheiro += n(f.microvixDinheiro);
-      aPrazo += n(f.microvixAPrazo); ifood += n(f.microvixIfood);
+      comp.aPrazo += n(f.microvixAPrazo); comp.ifood += n(f.microvixIfood);
     }
 
     // Comparativo: período anterior de mesma duração, imediatamente antes.
@@ -129,7 +128,7 @@ export default function PainelReceitas() {
       lista, fatTotal, totalVendas,
       ticketMedio: totalVendas > 0 ? fatTotal / totalVendas : null,
       mediaDiaria: lista.length ? fatTotal / lista.length : 0,
-      dias: lista.length, difCaixa, recebido, comp, aPrazo, ifood, variacao,
+      dias: lista.length, difCaixa, comp, variacao,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fechamentos, inicio, fim]);
@@ -154,6 +153,8 @@ export default function PainelReceitas() {
     { label: 'Voucher', valor: resumo?.comp.voucher || 0, cor: CORES_PAG.voucher },
     { label: 'Pix', valor: resumo?.comp.pix || 0, cor: CORES_PAG.pix },
     { label: 'Dinheiro', valor: resumo?.comp.dinheiro || 0, cor: CORES_PAG.dinheiro },
+    { label: 'A prazo', valor: resumo?.comp.aPrazo || 0, cor: CORES_PAG.aPrazo },
+    { label: 'iFood', valor: resumo?.comp.ifood || 0, cor: CORES_PAG.ifood },
   ].filter((d) => d.valor > 0);
   const compTotal = compDados.reduce((s, d) => s + d.valor, 0);
 
@@ -249,33 +250,20 @@ export default function PainelReceitas() {
         </section>
       </div>
 
-      {/* Registros e pendências */}
-      <div className="painel__colunas">
-        <section className="cartao">
-          <h2>Registros do período</h2>
-          <dl className="lista-stats">
-            <div><dt>Recebido (maquininhas + dinheiro)</dt><dd>{formatarBRL(resumo?.recebido || 0)}</dd></div>
-            <div><dt>A prazo (a receber)</dt><dd>{formatarBRL(resumo?.aPrazo || 0)}</dd></div>
-            <div><dt>iFood (repasse futuro)</dt><dd>{formatarBRL(resumo?.ifood || 0)}</dd></div>
-            <div><dt>Nº de vendas</dt><dd>{resumo?.totalVendas || '—'}</dd></div>
-          </dl>
-        </section>
-
-        <section className="cartao">
-          <h2>Pendências em aberto</h2>
-          {pendencias.length ? (
-            <ul className="pend-lista">
-              {pendencias.slice(0, 6).map((p) => (
-                <li key={p.id}>
-                  <span>{p.descricao}</span>
-                  <em>aberta {formatarData(p.dataAbertura)}</em>
-                  <strong>{formatarBRL(p.valor)}</strong>
-                </li>
-              ))}
-            </ul>
-          ) : <p className="painel__vazio">Nenhuma pendência em aberto.</p>}
-        </section>
-      </div>
+      <section className="cartao">
+        <h2>Pendências em aberto</h2>
+        {pendencias.length ? (
+          <ul className="pend-lista">
+            {pendencias.slice(0, 6).map((p) => (
+              <li key={p.id}>
+                <span>{p.descricao}</span>
+                <em>aberta {formatarData(p.dataAbertura)}</em>
+                <strong>{formatarBRL(p.valor)}</strong>
+              </li>
+            ))}
+          </ul>
+        ) : <p className="painel__vazio">Nenhuma pendência em aberto.</p>}
+      </section>
     </div>
   );
 }

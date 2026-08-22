@@ -10,9 +10,11 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { formatarBRL, formatarData } from '../utils/formatacao';
-import { receitaDoDia } from '../utils/calculos';
+import { receitaDoDia, totalMaquininhas, entradaDinheiro } from '../utils/calculos';
 
 const n = (x) => Number(x) || 0;
+
+const CORES_ORIGEM = { maquininhas: '#2f7d32', dinheiro: '#c9a227', ifood: '#d8362b' };
 
 const addDias = (iso, d) => {
   const x = new Date(`${iso}T12:00:00`);
@@ -34,7 +36,6 @@ export default function PainelDRE() {
   const [fechamentos, setFechamentos] = useState([]);
   const [despesas, setDespesas] = useState([]);
   const [repasses, setRepasses] = useState([]);
-  const [aPrazoRecebimentos, setAPrazoRecebimentos] = useState([]);
   const [inicio, setInicio] = useState('');
   const [fim, setFim] = useState('');
   const [carregando, setCarregando] = useState(true);
@@ -65,10 +66,6 @@ export default function PainelDRE() {
       .then((r) => r.json())
       .then((r) => setRepasses(Array.isArray(r) ? r : []))
       .catch(() => setRepasses([]));
-    fetch('/api/a-prazo')
-      .then((r) => r.json())
-      .then((r) => setAPrazoRecebimentos(Array.isArray(r) ? r : []))
-      .catch(() => setAPrazoRecebimentos([]));
   }, [inicio, fim]);
 
   const ultimaData = useMemo(
@@ -95,16 +92,15 @@ export default function PainelDRE() {
     const receitaIfood = repasses.reduce((s, r) => s + n(r.valorRecebido), 0);
     const receita = receitaCaixa + receitaIfood;
     const despesaTotal = despesas.reduce((s, d) => s + n(d.valor), 0);
-    // Só pra mostrar de onde veio — a prazo recebido já está DENTRO de
-    // receitaCaixa (o dinheiro foi contado no caixa ou passou na maquininha).
-    const receitaAPrazo = aPrazoRecebimentos
-      .filter((r) => r.data >= inicio && r.data <= fim)
-      .reduce((s, r) => s + n(r.valor), 0);
+    // Separado por canal, pra montar a barra de origem do dinheiro.
+    const receitaMaquininhas = fechDoPeriodo.reduce((s, f) => s + totalMaquininhas(f), 0);
+    const receitaDinheiro = fechDoPeriodo.reduce((s, f) => s + entradaDinheiro(f), 0);
     return {
-      dias: fechDoPeriodo.length, receita, receitaCaixa, receitaIfood, receitaAPrazo,
+      dias: fechDoPeriodo.length, receita, receitaCaixa, receitaIfood,
+      receitaMaquininhas, receitaDinheiro,
       despesaTotal, resultado: receita - despesaTotal,
     };
-  }, [fechamentos, despesas, repasses, aPrazoRecebimentos, inicio, fim]);
+  }, [fechamentos, despesas, repasses, inicio, fim]);
 
   if (carregando) {
     return <p className="painel__vazio">Carregando…</p>;
@@ -117,6 +113,13 @@ export default function PainelDRE() {
       </p>
     );
   }
+
+  const origemDados = [
+    { label: 'Maquininhas', valor: resumo?.receitaMaquininhas || 0, cor: CORES_ORIGEM.maquininhas },
+    { label: 'Dinheiro no caixa', valor: resumo?.receitaDinheiro || 0, cor: CORES_ORIGEM.dinheiro },
+    { label: 'Repasse do iFood', valor: resumo?.receitaIfood || 0, cor: CORES_ORIGEM.ifood },
+  ].filter((d) => d.valor > 0);
+  const origemTotal = origemDados.reduce((s, d) => s + d.valor, 0);
 
   return (
     <div className="painel__sub">
@@ -143,7 +146,7 @@ export default function PainelDRE() {
       )}
 
       <div className="kpis kpis--dre">
-        <Kpi titulo="Receita" valor={formatarBRL(resumo?.receita || 0)} rodape="regime de caixa" principal />
+        <Kpi titulo="Receita" valor={formatarBRL(resumo?.receita || 0)} rodape="dinheiro que entrou no período" principal />
         <Kpi titulo="Despesas" valor={formatarBRL(resumo?.despesaTotal || 0)} rodape={`${despesas.length} lançamento(s)`} />
         <Kpi
           titulo="Resultado"
@@ -154,15 +157,28 @@ export default function PainelDRE() {
       </div>
 
       <section className="cartao">
-        <h2>De onde veio a Receita</h2>
-        <dl className="lista-stats">
-          <div><dt>Maquininhas + dinheiro</dt><dd>{formatarBRL(resumo?.receitaCaixa || 0)}</dd></div>
-          <div><dt>iFood recebido</dt><dd>{formatarBRL(resumo?.receitaIfood || 0)}</dd></div>
-        </dl>
-        <p className="painel__nota">
-          A prazo recebido no período ({formatarBRL(resumo?.receitaAPrazo || 0)}) já está incluso em
-          "Maquininhas + dinheiro" — o valor foi contado no caixa ou passou na maquininha no dia do recebimento.
-        </p>
+        <h2>De onde veio o dinheiro</h2>
+        {origemDados.length ? (
+          <div className="composicao">
+            <div className="composicao__barra">
+              {origemDados.map((d) => (
+                <span key={d.label} title={`${d.label} — ${formatarBRL(d.valor)}`}
+                  style={{ width: `${(d.valor / origemTotal) * 100}%`, background: d.cor }} />
+              ))}
+            </div>
+            <ul className="legenda">
+              {origemDados.map((d) => (
+                <li key={d.label}>
+                  <span className="legenda__cor" style={{ background: d.cor }} />
+                  <span className="legenda__lbl">{d.label}</span>
+                  <span className="legenda__val">
+                    {formatarBRL(d.valor)} · {Math.round((d.valor / origemTotal) * 100)}%
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : <p className="painel__vazio">Nada recebido no período.</p>}
       </section>
 
       <p className="painel__nota">
