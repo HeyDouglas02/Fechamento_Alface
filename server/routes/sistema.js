@@ -7,7 +7,9 @@ import { google } from 'googleapis';
 import { uploadBackup, statusBackup } from '../backup.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PROJECT_ROOT = path.resolve(__dirname, '..');
+// server/routes/sistema.js -> sobe 2 níveis (routes -> server -> raiz do
+// repo, onde ficam .git e package.json).
+const PROJECT_ROOT = path.resolve(__dirname, '..', '..');
 
 const router = express.Router();
 

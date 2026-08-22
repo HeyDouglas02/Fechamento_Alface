@@ -16,16 +16,12 @@ function lerToken() {
   }
 }
 
-function salvarToken(tokens) {
-  writeFileSync(TOKEN_PATH, JSON.stringify(tokens, null, 2));
-}
-
 function lerLogBackup() {
-  if (!existsSync(LOG_PATH)) return { ultimoBackup: null };
+  if (!existsSync(LOG_PATH)) return { ultimoBackup: null, folderId: null };
   try {
     return JSON.parse(readFileSync(LOG_PATH, 'utf-8'));
   } catch {
-    return { ultimoBackup: null };
+    return { ultimoBackup: null, folderId: null };
   }
 }
 
@@ -60,41 +56,63 @@ export async function uploadBackup(dbPath) {
 
     const drive = google.drive({ version: 'v3', auth: oauth2Client });
 
-    // Verifica/cria pasta "Fechamento Alface Backups"
-    const query = "name='Fechamento Alface Backups' and mimeType='application/vnd.google-apps.folder' and trashed=false";
-    const rootSearch = await drive.files.list({ q: query, spaces: 'drive', pageSize: 1 });
-    let folderId;
+    // Pasta "Fechamento Alface Backups". O ID é guardado depois da primeira
+    // criação e reusado dali em diante — buscar por nome toda vez tem corrida
+    // (duas chamadas simultâneas podem não ver a pasta uma da outra e criar
+    // duas pastas iguais).
+    let log = lerLogBackup();
+    let folderId = log.folderId;
 
-    if (rootSearch.data.files.length > 0) {
-      folderId = rootSearch.data.files[0].id;
-    } else {
-      // Cria a pasta
-      const folderMeta = {
-        name: 'Fechamento Alface Backups',
-        mimeType: 'application/vnd.google-apps.folder',
-      };
-      const createdFolder = await drive.files.create({ resource: folderMeta, fields: 'id' });
-      folderId = createdFolder.data.id;
+    if (folderId) {
+      // Confirma que a pasta salva ainda existe e não foi pra lixeira.
+      try {
+        const info = await drive.files.get({ fileId: folderId, fields: 'id, trashed' });
+        if (info.data.trashed) folderId = null;
+      } catch {
+        folderId = null;
+      }
     }
 
-    // Upload do backup com nome data-based
+    if (!folderId) {
+      const query = "name='Fechamento Alface Backups' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+      const rootSearch = await drive.files.list({ q: query, spaces: 'drive', pageSize: 1 });
+
+      if (rootSearch.data.files.length > 0) {
+        folderId = rootSearch.data.files[0].id;
+      } else {
+        const folderMeta = {
+          name: 'Fechamento Alface Backups',
+          mimeType: 'application/vnd.google-apps.folder',
+        };
+        const createdFolder = await drive.files.create({ resource: folderMeta, fields: 'id' });
+        folderId = createdFolder.data.id;
+      }
+
+      salvarLogBackup({ ...log, folderId });
+    }
+
+    // Upload do backup com nome data-based. Se já existe um backup de hoje
+    // (rodou 2x no mesmo dia, manual + agendado, etc.), sobrescreve em vez de
+    // duplicar — o Drive não impede nomes repetidos numa pasta.
     const hoje = dataHoje();
     const fileName = `fechamento_${hoje}.db`;
-    const fileMetadata = {
-      name: fileName,
-      parents: [folderId],
-    };
-
     const media = {
       mimeType: 'application/octet-stream',
       body: createReadStream(dbPath),
     };
 
-    await drive.files.create({ resource: fileMetadata, media, fields: 'id' });
+    const existenteQuery = `name='${fileName}' and '${folderId}' in parents and trashed=false`;
+    const existente = await drive.files.list({ q: existenteQuery, spaces: 'drive', pageSize: 1 });
 
-    // Atualiza log
-    const log = { ultimoBackup: hoje, proxima: null };
-    salvarLogBackup(log);
+    if (existente.data.files.length > 0) {
+      await drive.files.update({ fileId: existente.data.files[0].id, media });
+    } else {
+      const fileMetadata = { name: fileName, parents: [folderId] };
+      await drive.files.create({ resource: fileMetadata, media, fields: 'id' });
+    }
+
+    // Atualiza log (preserva o folderId já salvo)
+    salvarLogBackup({ ...lerLogBackup(), ultimoBackup: hoje, folderId });
 
     console.log(`[Backup] ✓ Backup realizado: ${fileName}`);
     return true;
