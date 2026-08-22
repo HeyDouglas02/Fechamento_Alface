@@ -89,9 +89,16 @@ Ou, depois do build inicial, duplo clique em **`iniciar.vbs`** — sobe o servid
 ### Outros comandos
 
 ```bash
-npm test         # testes das funções de cálculo (src/utils/calculos.test.js)
-npx eslint .      # lint
+npm test              # testes unitários das funções de cálculo
+npm run test:integracao   # sobe um servidor de teste, popula ~470 lançamentos e confere tudo
+npm run diagnostico   # verifica se a atualização remota funciona nesta máquina
+npx eslint .          # lint
 ```
+
+O teste de integração usa banco temporário e derruba o servidor no final — não
+encosta em nenhum dado real. Ele reimplementa a matemática esperada por conta
+própria, sem importar `calculos.js`, pra que um erro de fórmula não passe
+despercebido por estar dos dois lados da comparação.
 
 ### Variáveis de ambiente
 

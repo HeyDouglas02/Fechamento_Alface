@@ -10,7 +10,8 @@
     "start": "node server/index.js",
     "iniciar": "npm run build && node server/index.js",
     "test": "node src/utils/calculos.test.js",
-    "test:integracao": "node tests/integracao.test.mjs"
+    "test:integracao": "node tests/integracao.test.mjs",
+    "diagnostico": "node tests/diagnostico.mjs"
   },
   "dependencies": {
     "cors": "^2.8.6",
