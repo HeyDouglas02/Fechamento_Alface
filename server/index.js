@@ -24,10 +24,20 @@ import ifoodRouter from './routes/ifood.js';
 import sistemaRouter from './routes/sistema.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const RAIZ = path.resolve(__dirname, '..');
 const PORT = process.env.PORT || 3001;
 // Por padrão o banco fica em server/data/fechamento.db. Pode ser sobrescrito
 // pela variável de ambiente DB_PATH.
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'data', 'fechamento.db');
+//
+// Um DB_PATH relativo é resolvido contra a RAIZ DO PROJETO, não contra a pasta
+// de onde o processo foi iniciado. Sem isso, abrir pelo atalho da área de
+// trabalho (que sobe de outra pasta) apontava para um caminho inexistente, e o
+// sistema criava um banco vazio — parecendo que os fechamentos sumiram.
+// Caminho absoluto continua sendo respeitado como está (path.resolve ignora a
+// base quando o segundo argumento já é absoluto).
+const DB_PATH = process.env.DB_PATH
+  ? path.resolve(RAIZ, process.env.DB_PATH)
+  : path.join(__dirname, 'data', 'fechamento.db');
 
 async function main() {
   const db = await initDb(DB_PATH);

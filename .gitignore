@@ -19,8 +19,8 @@ server/data
 *.bak
 *.bak_*
 
-# Ícone gerado a partir da logo (recriado por criar-atalho)
-public/logo.ico
+# (public/logo.ico é versionado: antes era gerado pelo criar-atalho.bat, que
+#  não existe mais — sem ele o atalho da área de trabalho fica sem ícone.)
 
 # Configuração local do Claude Code e artifacts de design (pessoal/tool, não versionar)
 .claude/
