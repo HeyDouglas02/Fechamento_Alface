@@ -15,7 +15,8 @@ const router = express.Router();
 
 function exec(cmd, args, cwd = PROJECT_ROOT) {
   return new Promise((resolve, reject) => {
-    execFile(cmd, args, { cwd, maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+    // shell: true — no Windows, "npm" é npm.cmd; execFile sem shell não acha.
+    execFile(cmd, args, { cwd, shell: true, maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
       if (err) reject(new Error(stderr || err.message));
       else resolve(stdout.trim());
     });
