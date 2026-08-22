@@ -328,10 +328,15 @@ export default function Configuracoes() {
             {carregandoVersao ? (
               <p className="config-aviso">Verificando versão…</p>
             ) : versao ? (
-              <p className="config-aviso">
-                Versão atual: <strong>{versao.commit}</strong> ({versao.data})
-                {versao.temAtualizacao && <span className="config-badge">Atualização disponível</span>}
-              </p>
+              <>
+                <p className="config-versao">
+                  Versão {versao.versao}
+                  {versao.temAtualizacao && <span className="config-badge">Atualização disponível</span>}
+                </p>
+                {versao.commit && (
+                  <p className="config-aviso">Instalada em {versao.data} · código {versao.commit}</p>
+                )}
+              </>
             ) : (
               <p className="config-aviso">Não foi possível verificar a versão.</p>
             )}

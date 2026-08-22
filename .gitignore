@@ -30,6 +30,9 @@ public/logo.ico
 .env
 .env.local
 
+# Guia de instalação da loja — uso interno, não vai pro repositório público
+docs/INSTALACAO.md
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

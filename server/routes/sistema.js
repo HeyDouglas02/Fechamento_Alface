@@ -23,7 +23,18 @@ function exec(cmd, args, cwd = PROJECT_ROOT) {
   });
 }
 
-// GET /api/sistema/versao — commit atual e status de atualização
+// Versão do sistema (package.json). Lida uma vez no boot.
+const VERSAO = (() => {
+  try {
+    return JSON.parse(readFileSync(path.join(PROJECT_ROOT, 'package.json'), 'utf-8')).version || '—';
+  } catch {
+    return '—';
+  }
+})();
+
+// GET /api/sistema/versao — versão, commit atual e status de atualização.
+// A versão é o que o operador lê; o commit fica como detalhe técnico (útil pra
+// saber exatamente qual código está rodando quando a versão não mudou).
 router.get('/versao', async (req, res) => {
   try {
     const commitHash = await exec('git', ['rev-parse', 'HEAD']);
@@ -42,12 +53,14 @@ router.get('/versao', async (req, res) => {
     }
 
     res.json({
+      versao: VERSAO,
       commit: commitHash.slice(0, 7),
       data: commitDate.slice(0, 10),
       temAtualizacao,
     });
   } catch (err) {
-    res.status(500).json({ erro: err.message });
+    // Sem git (ou pasta que não é um clone): ainda dá pra informar a versão.
+    res.json({ versao: VERSAO, commit: null, data: null, temAtualizacao: false, aviso: err.message });
   }
 });
 

@@ -184,6 +184,16 @@
   opacity: 0.6;
 }
 
+.config-versao {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--texto);
+}
+
 .config-badge {
   display: inline-block;
   margin-left: 0.5rem;
