@@ -1,6 +1,6 @@
 import express from 'express';
 import { execFile, spawn } from 'node:child_process';
-import { createReadStream, existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { google } from 'googleapis';

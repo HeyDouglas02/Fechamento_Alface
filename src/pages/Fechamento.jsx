@@ -140,7 +140,6 @@ export default function Fechamento({ alvoData = null, alvoToken = 0, usuario = n
         }
       });
     return () => { cancelado = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.data, config]);
 
   // Carrega as pendências do dia e a lista de abertas (recarregada após cada

@@ -76,7 +76,11 @@ export default function Contas() {
       .finally(() => setCarregando(false));
   }
 
+  // Carga inicial, uma vez só.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { carregarTudo(); }, []);
+  // Recarrega a lista quando o período muda (a carga inicial já traz tudo).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (!carregando) carregarDespesas(); }, [inicio, fim]);
 
   const categoriaAtual = categorias.find((c) => String(c.id) === String(form.categoriaId));
