@@ -125,7 +125,10 @@ export default function PainelReceitas() {
     const prevFim = addDias(inicio, -1);
     const prevIni = addDias(prevFim, -(durDias - 1));
     const fatAnt = fatNoPeriodo(prevIni, prevFim);
-    const variacao = fatAnt > 0 ? ((fatTotal - fatAnt) / fatAnt) * 100 : null;
+    // Sem nenhum dia fechado no período não há o que comparar: mostrar "-100%"
+    // num domingo ou num dia ainda não fechado soa como queda de venda, quando
+    // é só ausência de registro.
+    const variacao = lista.length && fatAnt > 0 ? ((fatTotal - fatAnt) / fatAnt) * 100 : null;
 
     return {
       lista, fatTotal, totalVendas,
@@ -195,7 +198,11 @@ export default function PainelReceitas() {
           valor={resumo?.ticketMedio != null ? formatarBRL(resumo.ticketMedio) : '—'}
           rodape={resumo?.ticketMedio != null ? `${resumo.totalVendas} venda(s)` : 'Preencha o nº de vendas no fechamento'} />
         <Kpi titulo="Diferença de caixa" valor={formatarBRL(resumo?.difCaixa || 0)}
-          rodape={resumo?.difCaixa < 0 ? 'faltou no período' : resumo?.difCaixa > 0 ? 'sobrou no período' : 'tudo certo'}
+          rodape={
+            !resumo?.dias ? 'nenhum dia fechado no período'
+              : resumo.difCaixa < 0 ? 'faltou no período'
+                : resumo.difCaixa > 0 ? 'sobrou no período' : 'tudo certo'
+          }
           cor={resumo?.difCaixa < 0 ? 'neg' : resumo?.difCaixa > 0 ? 'pos' : 'zero'} />
         <Kpi titulo="Pendências em aberto" valor={formatarBRL(pendTotal)}
           rodape={`${pendencias.length} pendência(s) a receber`} />
