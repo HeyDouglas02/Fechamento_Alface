@@ -18,7 +18,7 @@ const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 // Comandos fixos, sem interpolação de entrada do usuário.
 function exec(comando) {
   return new Promise((resolve, reject) => {
-    execCb(comando, { cwd: RAIZ, maxBuffer: 10 * 1024 * 1024, timeout: 180000 },
+    execCb(comando, { cwd: RAIZ, windowsHide: true, maxBuffer: 10 * 1024 * 1024, timeout: 180000 },
       (err, stdout, stderr) => {
         if (err) reject(new Error((stderr || err.message).trim().split('\n')[0]));
         else resolve(String(stdout));

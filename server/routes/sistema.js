@@ -13,10 +13,20 @@ const PROJECT_ROOT = path.resolve(__dirname, '..', '..');
 
 const router = express.Router();
 
-function exec(cmd, args, cwd = PROJECT_ROOT) {
+// Só o npm precisa de shell no Windows (é npm.cmd, não um .exe). Usar shell
+// para tudo fazia cada comando git abrir um cmd.exe, e a janela do console
+// piscava na tela do operador a cada chamada.
+const PRECISA_SHELL = new Set(['npm', 'npx']);
+
+function exec(cmd, args, opcoes = {}) {
   return new Promise((resolve, reject) => {
-    // shell: true — no Windows, "npm" é npm.cmd; execFile sem shell não acha.
-    execFile(cmd, args, { cwd, shell: true, maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+    execFile(cmd, args, {
+      cwd: PROJECT_ROOT,
+      shell: PRECISA_SHELL.has(cmd),
+      windowsHide: true, // sem janela de console piscando
+      maxBuffer: 10 * 1024 * 1024,
+      ...opcoes,
+    }, (err, stdout, stderr) => {
       if (err) reject(new Error(stderr || err.message));
       else resolve(stdout.trim());
     });
@@ -54,7 +64,9 @@ router.get('/versao', async (req, res) => {
 // não serve, porque o local pode estar À FRENTE (commits ainda não publicados).
 router.get('/verificar-atualizacao', async (req, res) => {
   try {
-    await exec('git', ['fetch']);
+    // Timeout curto: sem internet, o git fica ~20s tentando abrir a conexão
+    // antes de desistir, e a tela fica travada esperando esse tempo todo.
+    await exec('git', ['fetch'], { timeout: 12000 });
     const atras = Number(await exec('git', ['rev-list', '--count', 'HEAD..@{u}']));
     res.json({ temAtualizacao: atras > 0, commitsAtras: atras });
   } catch (err) {
@@ -110,6 +122,7 @@ router.post('/atualizar', async (req, res) => {
         cwd: PROJECT_ROOT,
         detached: true,
         stdio: 'ignore',
+        windowsHide: true,
         env: { ...process.env, ABRIR_NAVEGADOR: '0' }, // Não abre navegador em restart automático
       });
       newProcess.unref();
