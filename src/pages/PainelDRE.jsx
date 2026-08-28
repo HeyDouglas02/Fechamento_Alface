@@ -9,7 +9,7 @@
 // em Painel.css, importado pela casca (Painel.jsx).
 
 import { useEffect, useMemo, useState } from 'react';
-import { formatarBRL, formatarData } from '../utils/formatacao';
+import { formatarBRL, formatarData, hojeISO } from '../utils/formatacao';
 import { receitaDoDia, totalMaquininhas, entradaDinheiro } from '../utils/calculos';
 
 const n = (x) => Number(x) || 0;
@@ -73,6 +73,8 @@ export default function PainelDRE() {
     [fechamentos]
   );
 
+  // Data real, não a do último fechamento (ver PainelReceitas).
+  function presetHoje() { const h = hojeISO(); setInicio(h); setFim(h); }
   function presetMesAtual() { if (ultimaData) { setInicio(primeiroDiaMes(ultimaData)); setFim(ultimoDiaMes(ultimaData)); } }
   function presetMesAnterior() { if (ultimaData) { const p = mesAnteriorDe(ultimaData); setInicio(p); setFim(ultimoDiaMes(p)); } }
   function presetUltimos7() { if (ultimaData) { setInicio(addDias(ultimaData, -6)); setFim(ultimaData); } }
@@ -126,6 +128,7 @@ export default function PainelDRE() {
       <div className="painel__topo">
         <div className="filtro">
           <div className="filtro__presets">
+            <button type="button" onClick={presetHoje}>Hoje</button>
             <button type="button" onClick={presetMesAtual}>Mês atual</button>
             <button type="button" onClick={presetMesAnterior}>Mês anterior</button>
             <button type="button" onClick={presetUltimos7}>Últimos 7 dias</button>

@@ -48,6 +48,7 @@ export default function PainelDespesas() {
     [todas, inicio, fim]
   );
 
+  function presetHoje() { setInicio(hoje); setFim(hoje); }
   function presetMesAtual() { setInicio(primeiroDiaMes(hoje)); setFim(ultimoDiaMes(hoje)); }
   function presetMesAnterior() { const p = mesAnteriorDe(hoje); setInicio(p); setFim(ultimoDiaMes(p)); }
   function presetUltimos7() { setInicio(addDias(hoje, -6)); setFim(hoje); }
@@ -96,6 +97,7 @@ export default function PainelDespesas() {
       <div className="painel__topo">
         <div className="filtro">
           <div className="filtro__presets">
+            <button type="button" onClick={presetHoje}>Hoje</button>
             <button type="button" onClick={presetMesAtual}>Mês atual</button>
             <button type="button" onClick={presetMesAnterior}>Mês anterior</button>
             <button type="button" onClick={presetUltimos7}>Últimos 7 dias</button>

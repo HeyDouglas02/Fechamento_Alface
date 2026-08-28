@@ -317,6 +317,9 @@ export default function Contas() {
         <div className="contas__lista-cabecalho">
           <h2>Despesas lançadas</h2>
           <div className="contas__filtro">
+            <button type="button" onClick={() => { setInicio(hoje); setFim(hoje); }}>
+              Hoje
+            </button>
             <button type="button" onClick={() => { setInicio(primeiroDiaMes(hoje)); setFim(ultimoDiaMes(hoje)); }}>
               Mês atual
             </button>
