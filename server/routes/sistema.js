@@ -77,6 +77,34 @@ router.get('/verificar-atualizacao', async (req, res) => {
   }
 });
 
+// Arquivos que o próprio processo de atualização reescreve sozinho. O
+// `npm install` reescreve o package-lock.json quando a versão do npm da loja
+// difere da que gerou o lock, e o arquivo fica modificado sem ninguém ter
+// editado nada. Na atualização seguinte o `git pull` aborta com "your local
+// changes would be overwritten by merge" e o sistema trava até alguém abrir um
+// terminal na loja. Como são arquivos gerados por máquina, descartar a versão
+// local e ficar com a do repositório é sempre o que se quer.
+const GERADOS_PELA_ATUALIZACAO = ['package-lock.json'];
+
+async function descartarGerados() {
+  // `--` garante que o git leia como caminho de arquivo, nunca como branch.
+  // Falha quando o arquivo não está modificado — não é erro, é o caso normal.
+  await exec('git', ['checkout', '--', ...GERADOS_PELA_ATUALIZACAO]).catch(() => {});
+}
+
+// Arquivos rastreados e modificados que NÃO são gerados pela atualização. Se
+// houver algum, alguém editou o código na máquina da loja e o pull vai abortar
+// — melhor dizer isso na tela do que deixar o git responder em inglês.
+async function edicoesLocais() {
+  const saida = await exec('git', ['status', '--porcelain']).catch(() => '');
+  return saida
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .map((l) => l.replace(/^\S+\s+/, ''))
+    .filter((arquivo) => !GERADOS_PELA_ATUALIZACAO.includes(arquivo));
+}
+
 // POST /api/sistema/atualizar — streaming de git pull → npm install → npm run build → restart
 router.post('/atualizar', async (req, res) => {
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
@@ -87,18 +115,38 @@ router.post('/atualizar', async (req, res) => {
   try {
     // 1. git pull
     write('[1/3] Atualizando código...');
-    const beforePullHash = await exec('git', ['rev-parse', 'HEAD']).catch(() => '');
+    await descartarGerados();
+
+    const editados = await edicoesLocais();
+    if (editados.length) {
+      throw new Error(
+        `há arquivos modificados nesta máquina que o pull sobrescreveria: ${editados.join(', ')}. ` +
+        'Alguém editou o código aqui. Resolva isso antes de atualizar.'
+      );
+    }
+
+    const antes = await exec('git', ['rev-parse', 'HEAD']).catch(() => '');
     await exec('git', ['pull', 'origin']);
+    const depois = await exec('git', ['rev-parse', 'HEAD']).catch(() => '');
     write('✓ Código atualizado');
 
-    // 2. npm install (só se package-lock.json mudou)
+    // 2. npm install — só quando as dependências realmente mudaram. Antes isso
+    // comparava o HEAD antes/depois do pull, ou seja, reinstalava tudo a cada
+    // commit novo, mesmo em mudança só de front. Nesse PC o install é a etapa
+    // mais lenta da atualização.
     write('[2/3] Verificando dependências...');
-    const afterPullHash = await exec('git', ['rev-parse', 'HEAD']).catch(() => '');
-    const packageLockChanged = beforePullHash !== afterPullHash;
+    const mudouDependencia = antes && depois && antes !== depois
+      ? (await exec('git', ['diff', '--name-only', `${antes}..${depois}`]))
+          .split('\n')
+          .some((f) => f.trim() === 'package.json' || f.trim() === 'package-lock.json')
+      : false;
 
-    if (packageLockChanged) {
+    if (mudouDependencia) {
       write('Instalando dependências...');
       await exec('npm', ['install']);
+      // O install pode ter reescrito o lock de novo. Limpa aqui também, senão
+      // a próxima atualização já começa com a pasta suja.
+      await descartarGerados();
       write('✓ Dependências instaladas');
     } else {
       write('✓ Dependências sem alteração');
