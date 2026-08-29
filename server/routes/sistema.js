@@ -143,11 +143,15 @@ router.post('/atualizar', async (req, res) => {
     // comparava o HEAD antes/depois do pull, ou seja, reinstalava tudo a cada
     // commit novo, mesmo em mudança só de front. Nesse PC o install é a etapa
     // mais lenta da atualização.
+    //
+    // Olha só o package-lock.json, nunca o package.json: é lá que fica o número
+    // da versão, então todo lançamento mexe nele e a checagem daria sempre
+    // positiva. Trocar dependência sem o npm reescrever o lock não acontece.
     write('[2/3] Verificando dependências...');
     const mudouDependencia = antes && depois && antes !== depois
       ? (await exec('git', ['diff', '--name-only', `${antes}..${depois}`]))
           .split('\n')
-          .some((f) => f.trim() === 'package.json' || f.trim() === 'package-lock.json')
+          .some((f) => f.trim() === 'package-lock.json')
       : false;
 
     if (mudouDependencia) {
