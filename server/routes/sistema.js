@@ -42,21 +42,30 @@ const VERSAO = (() => {
   }
 })();
 
-// GET /api/sistema/versao — versão, commit atual e status de atualização.
+// Commit atual — lido uma vez só, na subida do servidor. Não muda enquanto o
+// processo vive: toda atualização reinicia o Node. Antes era lido a cada
+// abertura de Configurações, dois processos git por vez, e a tela ficava
+// esperando isso no PC da loja. A leitura começa aqui e ninguém espera por
+// ela; quem chamar a rota pega o resultado já pronto.
+const INFO_GIT = (async () => {
+  try {
+    // Um comando só: hash e data do mesmo commit, separados por barra vertical.
+    const [hash, data] = (await exec('git', ['log', '-1', '--format=%H|%ai'])).split('|');
+    return { commit: hash.slice(0, 7), data: data.slice(0, 10) };
+  } catch (err) {
+    // Sem git (ou pasta que não é um clone): ainda dá pra informar a versão.
+    return { commit: null, data: null, aviso: err.message };
+  }
+})();
+
+// GET /api/sistema/versao — versão e commit atual.
 // A versão é o que o operador lê; o commit fica como detalhe técnico (útil pra
 // saber exatamente qual código está rodando quando a versão não mudou).
 // Só informação LOCAL — nada de rede. Abrir Configurações não pode ficar
 // esperando um git fetch: a checagem de novidade é sob demanda, no botão
 // "Verificar atualizações" (ver /verificar-atualizacao).
 router.get('/versao', async (req, res) => {
-  try {
-    const commitHash = await exec('git', ['rev-parse', 'HEAD']);
-    const commitDate = await exec('git', ['log', '-1', '--format=%ai', commitHash]);
-    res.json({ versao: VERSAO, commit: commitHash.slice(0, 7), data: commitDate.slice(0, 10) });
-  } catch (err) {
-    // Sem git (ou pasta que não é um clone): ainda dá pra informar a versão.
-    res.json({ versao: VERSAO, commit: null, data: null, aviso: err.message });
-  }
+  res.json({ versao: VERSAO, ...(await INFO_GIT) });
 });
 
 // GET /api/sistema/verificar-atualizacao — consulta o servidor (tem rede).
