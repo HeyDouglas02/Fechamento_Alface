@@ -1,6 +1,6 @@
 {
   "name": "fechamento-alface",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "Sistema de fechamento de caixa — Alface & Melancia",
   "type": "module",
   "scripts": {
