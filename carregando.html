@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Abrindo o sistema…</title>
+  <link rel="icon" href="public/logo.ico">
+  <!--
+    Tela de carregamento aberta pelo iniciar.vbs no instante do duplo-clique.
+    Abre direto do disco (file://), antes de o servidor existir, e fica
+    perguntando ao /api/health até ele responder; aí entra no sistema.
+    Se o servidor já estava rodando (segundo duplo-clique), entra na hora.
+  -->
+  <style>
+    :root {
+      --verde: #43a83a;
+      --texto: #1f2733;
+      --texto-suave: #5b6672;
+      --vermelho: #d8362b;
+      --bg: #f3f5f8;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg);
+      color: var(--texto);
+      font-family: 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif;
+    }
+    .caixa { text-align: center; padding: 16px; }
+    .logo {
+      width: 160px;
+      height: 160px;
+      mix-blend-mode: multiply; /* some com o fundo branco do jpg */
+    }
+    h1 { font-size: 20px; font-weight: 600; margin: 20px 0 6px; }
+    p { color: var(--texto-suave); margin: 0; }
+    .barra {
+      width: 220px;
+      height: 4px;
+      margin: 24px auto 0;
+      border-radius: 2px;
+      background: #e4e8ed;
+      overflow: hidden;
+    }
+    .barra::after {
+      content: '';
+      display: block;
+      width: 40%;
+      height: 100%;
+      background: var(--verde);
+      animation: corre 1.2s ease-in-out infinite;
+    }
+    @keyframes corre {
+      from { transform: translateX(-100%); }
+      to { transform: translateX(250%); }
+    }
+    .erro h1 { color: var(--vermelho); }
+    .erro .barra { display: none; }
+  </style>
+</head>
+<body>
+  <div class="caixa" id="caixa">
+    <img class="logo" src="public/logo.jpg" alt="Alface Melancia &amp; Cia.">
+    <h1 id="titulo">Abrindo o sistema…</h1>
+    <p id="texto">Só um instante.</p>
+    <div class="barra"></div>
+  </div>
+
+  <script>
+    var URL_SISTEMA = 'http://localhost:3001';
+    var LIMITE_MS = 60000;
+    var inicio = Date.now();
+
+    function tentar() {
+      fetch(URL_SISTEMA + '/api/health', { cache: 'no-store' })
+        .then(function (r) {
+          if (!r.ok) throw new Error();
+          location.replace(URL_SISTEMA);
+        })
+        .catch(function () {
+          if (Date.now() - inicio > LIMITE_MS) return desistir();
+          setTimeout(tentar, 500);
+        });
+    }
+
+    function desistir() {
+      document.getElementById('caixa').className = 'caixa erro';
+      document.getElementById('titulo').textContent = 'O sistema não abriu';
+      document.getElementById('texto').textContent =
+        'Feche esta janela e abra o atalho de novo. Se continuar, reinicie o computador.';
+    }
+
+    tentar();
+  </script>
+</body>
+</html>

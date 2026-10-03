@@ -55,23 +55,27 @@ async function main() {
     await uploadBackup(db.path);
   });
 
-  // Catch-up: se o PC ficou desligado na sexta, roda backup no boot
-  const logPath = path.join(__dirname, 'data', 'backup-log.json');
-  if (fs.existsSync(logPath)) {
-    try {
-      const log = JSON.parse(fs.readFileSync(logPath, 'utf-8'));
-      const ultimoBackup = log.ultimoBackup;
-      if (ultimoBackup) {
-        const hoje = new Date();
-        const hojeStr = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
-        const diffDias = Math.floor((new Date(hojeStr) - new Date(ultimoBackup)) / (1000 * 60 * 60 * 24));
-        if (diffDias > 7) {
-          console.log(`[Boot] Último backup foi há ${diffDias} dias — disparando backup de catch-up...`);
-          await uploadBackup(db.path);
+  // Catch-up: se o PC ficou desligado na sexta, roda backup no boot. Roda
+  // depois do listen e sem await: o upload pode levar vários segundos e não
+  // pode segurar a abertura do sistema (a tela de carregamento fica esperando).
+  async function backupCatchUp() {
+    const logPath = path.join(__dirname, 'data', 'backup-log.json');
+    if (fs.existsSync(logPath)) {
+      try {
+        const log = JSON.parse(fs.readFileSync(logPath, 'utf-8'));
+        const ultimoBackup = log.ultimoBackup;
+        if (ultimoBackup) {
+          const hoje = new Date();
+          const hojeStr = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
+          const diffDias = Math.floor((new Date(hojeStr) - new Date(ultimoBackup)) / (1000 * 60 * 60 * 24));
+          if (diffDias > 7) {
+            console.log(`[Boot] Último backup foi há ${diffDias} dias — disparando backup de catch-up...`);
+            await uploadBackup(db.path);
+          }
         }
+      } catch (err) {
+        console.warn('[Boot] Erro ao checar log de backup:', err.message);
       }
-    } catch (err) {
-      console.warn('[Boot] Erro ao checar log de backup:', err.message);
     }
   }
 
@@ -116,6 +120,7 @@ async function main() {
     if (process.env.ABRIR_NAVEGADOR === '1') {
       exec(`start "" "${url}"`);
     }
+    backupCatchUp();
   });
 }
 
