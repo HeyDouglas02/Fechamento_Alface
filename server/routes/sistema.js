@@ -232,8 +232,12 @@ router.get('/google/auth-url', (req, res) => {
     );
 
     const scopes = ['https://www.googleapis.com/auth/drive.file'];
+    // prompt 'consent' força o Google a mandar um refresh_token novo também ao
+    // reconectar. Sem isso ele só manda na primeira autorização, o token salvo
+    // fica sem refresh_token e o backup volta a falhar uma hora depois.
     const authUrl = oauth2Client.generateAuthUrl({
       access_type: 'offline',
+      prompt: 'consent',
       scope: scopes,
     });
 

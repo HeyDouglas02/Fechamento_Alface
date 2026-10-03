@@ -129,8 +129,12 @@ export async function uploadBackup(dbPath) {
       'erro desconhecido';
     console.error(`[Backup] Erro ao fazer upload: ${detalhe}`);
 
-    // Token revogado/expirado é o caso mais comum e tem conserto claro.
+    // Token revogado/expirado é o caso mais comum e tem conserto claro. O
+    // código do erro (invalid_grant) fica em response.data.error, separado da
+    // descrição — que às vezes é só "Bad Request" e não diz nada sozinha.
+    const codigo = err?.response?.data?.error;
     const precisaReconectar =
+      codigo === 'invalid_grant' ||
       /invalid_grant|invalid_token|unauthorized|Token has been expired or revoked/i.test(detalhe);
     return {
       ok: false,
